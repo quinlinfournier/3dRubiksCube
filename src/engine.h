@@ -6,7 +6,8 @@
 #include <memory>
 #include <vector>
 
-#include "shapes/cube.h"
+#include "RubiksCube.h"
+#include "shapes/cubelet.h"
 #include "shader/shaderManager.h"
 
 using std::vector, std::unique_ptr, std::make_unique, glm::ortho, glm::cross,
@@ -43,8 +44,7 @@ private:
 
 
   // Shapes
-  unique_ptr<Cube> cubeLeft;
-  unique_ptr<Cube> cubeRight;
+    unique_ptr<RubiksCube> rubiksCube;
 
   // Keep track of the camera's distance from the origin
   // Moving the camera closer and farther will have the

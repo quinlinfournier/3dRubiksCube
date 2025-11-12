@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "RubiksCube.h"
 
 const color red(1, 0, 0);
 const color green(0, 1, 0);
@@ -9,7 +10,7 @@ const color cyan(0, 1, 1);
 const color white(1, 1, 1);
 const color black(0, 0, 0);
 
-Engine::Engine() : keys(), cameraZ(-3.0f) {
+Engine::Engine() : keys(), cameraZ(-8.0f) {
   this->initWindow();
   this->initShaders();
   this->initShapes();
@@ -61,21 +62,16 @@ void Engine::initShaders() {
 }
 
 void Engine::initShapes() {
-  cubeLeft =
-    make_unique<Cube>(cubeShader, vec3(-0.5f, 0.0f, 0.0f),
-                      vec3(0.5f, 0.5f, 0.5f), vector<color>({red, green, blue, yellow, magenta, cyan, white, black}));
-  // initialize cubeRight
-  cubeRight =
-    make_unique<Cube>(cubeShader, vec3(0.5f, 0.0f, 0.0f),
-                      vec3(0.5f, 0.5f, 0.5f), vector<color>({red, green, blue, yellow, magenta, cyan, white, black}));
+    this->rubiksCube = make_unique<RubiksCube>(cubeShader);
 }
 
 void Engine::initMatrices() {
   // The view matrix is the camera's position and orientation in the world
   // We start at (0, 0, 3) and look at (0, 0, 0) with the up vector being (0, 1,
   // 0)
-  view = lookAt(vec3(0.0f, 0.0f, 3.0f), vec3(0.0f, 0.0f, 0.0f),
-                vec3(0.0f, 1.0f, 0.0f));
+  view = lookAt(vec3(0.0f, 0.0f, 3.0f),
+              vec3(0.0f, 0.0f, 0.0f),
+                 vec3(0.0f, 1.0f, 0.0f));
   // The projection matrix for 3D is distorted by 45 degrees to give a
   // perspective view
   projection = glm::perspective(
@@ -103,26 +99,35 @@ void Engine::processInput() {
 
   // Rotate the cube with keys
   // Hint: keys are GLFW_KEY_UP, GLFW_KEY_DOWN, GLFW_KEY_LEFT, GLFW_KEY_RIGHT, GLFW_KEY_COMMA, and GLFW_KEY_PERIOD
-  if (keys[GLFW_KEY_UP]) {
-    // To make the cube appear to tilt up, it needs to rotate around its center point in relation to the x-axis
-    cubeLeft->rotateX(-0.01f);
-    cubeRight->rotateX(-.01f);
-
-  }
-  if (keys[GLFW_KEY_DOWN]) {
-    cubeLeft->rotateX(.01f);
-    cubeRight->rotateX(.01f);
-
-  }
-  if (keys[GLFW_KEY_RIGHT]) {
-    cubeLeft->rotateY(.01f);
-    cubeRight->rotateY(-.01f);
-
-  }
-  if (keys[GLFW_KEY_LEFT]) {
-    cubeLeft->rotateY(-.01f);
-    cubeRight->rotateY(.01f);
-
+  // if (keys[GLFW_KEY_UP]) {
+  //   // To make the cube appear to tilt up, it needs to rotate around its center point in relation to the x-axis
+  //   cubeLeft->rotateX(-0.01f);
+  //   cubeRight->rotateX(-.01f);
+  //
+  // }
+  // if (keys[GLFW_KEY_DOWN]) {
+  //   cubeLeft->rotateX(.01f);
+  //   cubeRight->rotateX(.01f);
+  //
+  // }
+  // if (keys[GLFW_KEY_RIGHT]) {
+  //   cubeLeft->rotateY(.01f);
+  //   cubeRight->rotateY(-.01f);
+  //
+  // }
+  // if (keys[GLFW_KEY_LEFT]) {
+  //   cubeLeft->rotateY(-.01f);
+  //   cubeRight->rotateY(.01f);
+  //
+  // }
+  if (!rubiksCube->isRotating()) { // Only allow input if cube is not animating
+    if (keys[GLFW_KEY_R]) {
+      rubiksCube->startRotation('X', 1.0f, 90.0f); // Right face: X=1 layer, 90 deg
+    }
+    if (keys[GLFW_KEY_L]) {
+      rubiksCube->startRotation('X', -1.0f, -90.0f); // Left face: X=-1 layer, -90 deg
+    }
+    // ... add U, D, F, B rotations ...
   }
 
   // Rotate the second cube to mirror the first
@@ -134,6 +139,8 @@ void Engine::update() {
   deltaTime = currentFrame - lastFrame;
   lastFrame = currentFrame;
 
+  rubiksCube->update(deltaTime);
+
 }
 
 void Engine::render() {
@@ -142,24 +149,16 @@ void Engine::render() {
   glClear(GL_COLOR_BUFFER_BIT |
           GL_DEPTH_BUFFER_BIT); // Also need to clear the depth buffer bit
 
-  // Resetting model and view matrices every frame prevents the cubes from
-  // spinning
-  modelLeft = glm::mat4(1.0f);
-  modelRight = glm::mat4(1.0f);
+  // Resetting model and view matrices for camera setup
+  glm::mat4 model = glm::mat4(1.0f);
   view = glm::mat4(1.0f);
+  view = glm::translate(view, glm::vec3(0.0f, 0.0f, cameraZ)); // cameraZ is typically -3.0f
 
-  // Move the camera back 3 units to view the cube
-  view = glm::translate(view, glm::vec3(0.0f, 0.0f, cameraZ));
-
-  cubeShader.use();
-  // Draw cube
-  cubeLeft->setUniforms(modelLeft, view, projection);
-  cubeLeft->draw(modelLeft, view, projection);
-  // Draw the second cube
-  cubeRight->setUniforms(modelLeft, view, projection);
-  cubeRight->draw(modelLeft, view, projection);
+  // Draw the entire RubiksCube model
+  rubiksCube->draw(view, projection);
 
   glfwSwapBuffers(window);
 }
-
-bool Engine::shouldClose() { return glfwWindowShouldClose(window); }
+bool Engine::shouldClose() {
+  return glfwWindowShouldClose(window);
+}
