@@ -64,6 +64,62 @@ void RubiksCube::draw(const glm::mat4& view, const glm::mat4& projection) {
     }
 }
 
+
+// --- Update Function (Placeholder for animation) ---
+void RubiksCube::update(float deltaTime) {
+    if (!isRotating()) {
+        return;
+    }
+
+    // Determine the amount of angle we want to rotate this frame
+    float angleRemaining = std::abs(currentRotation.totalAngle) - currentRotation.currentAngle;
+    float angleThisFrame = currentRotation.speed * deltaTime;
+
+    // Ensure we don't overshoot the target angle
+    if (angleThisFrame >= angleRemaining) {
+        angleThisFrame = angleRemaining;
+        finalizeRotation(); // Finished! Snap to grid and update state.
+        return; // Exit update after finalizing
+    }
+
+    // Apply the sign of the totalAngle to the rotation
+    float rotationDir = (currentRotation.totalAngle > 0) ? 1.0f : -1.0f;
+    float finalAngle = rotationDir * angleThisFrame;
+
+    // Create rotation matrix around axis
+
+    glm::mat4 rotationMatrix(1.0f);
+    glm::vec3 axis(0.0f);
+
+    if (currentRotation.axis == 'X') {
+        axis = glm::vec3(1.0f, 0.0f, 0.0f);
+    } else if (currentRotation.axis == 'Y') {
+        axis = glm::vec3(0.0f, 1.0f, 0.0f);
+    } else if (currentRotation.axis == 'Z') {
+        axis = glm::vec3(0.0f, 0.0f, 1.0f);
+    }
+
+    rotationMatrix = glm::rotate(rotationMatrix, glm::radians(finalAngle), axis);
+
+    // Rotate each cubelet around the cube center (0,0,0)
+    for (Cubelet* piece : rotatingPieces) {
+        // Get current position relative to cube center
+        glm::vec3 currentPos = piece->getPosition();
+
+        // Rotate the position vector around cube center
+        glm::vec4 newPos = rotationMatrix * glm::vec4(currentPos, 1.0f);
+
+        // Update the cubelet's position (this orbits it around center)
+        piece->setPosition(glm::vec3(newPos));
+
+        // Also rotate the cubelet's orientation so it faces correctly
+        // Use the simple rotateLocal that just applies the rotation to the model matrix
+        piece->rotateLocal(rotationMatrix);
+    }
+
+    currentRotation.currentAngle += angleThisFrame;
+}
+
 void RubiksCube::finalizeRotation() {
 
     // 1. Update Position and Color for each piece
@@ -93,67 +149,24 @@ void RubiksCube::finalizeRotation() {
             }
         }
 
-        // CRITICAL STEP: Snap new position to the grid (-1, 0, or 1)
-        // to eliminate accumulated floating-point errors from the animation.
+        // Snap to grid to stop floating-point errors
         newPos.x = std::round(newPos.x);
         newPos.y = std::round(newPos.y);
         newPos.z = std::round(newPos.z);
 
-        // Permanently update the piece's grid position and reset the translation component
-        // of its model matrix to the new, exact grid coordinates.
+        // Update position and reset model matrix
         piece->setPosition(newPos);
 
-        // Update the piece's internal color arrangement (the actual puzzle state change).
+        // Update colors
         swapPieceColors(piece, currentRotation.axis, currentRotation.totalAngle > 0);
     }
 
     // 2. Reset the rotation state
-    // This allows the user to input the next turn.
     currentRotation.axis = '\0';
     rotatingPieces.clear();
 }
 
-// --- Update Function (Placeholder for animation) ---
-void RubiksCube::update(float deltaTime) {
-    if (!isRotating()) {
-        return;
-    }
-
-    // Determine the amount of angle we want to rotate this frame
-    float angleRemaining = std::abs(currentRotation.totalAngle) - currentRotation.currentAngle;
-    float angleThisFrame = currentRotation.speed * deltaTime;
-
-    // Ensure we don't overshoot the target angle
-    if (angleThisFrame >= angleRemaining) {
-        angleThisFrame = angleRemaining;
-        finalizeRotation(); // Finished! Snap to grid and update state.
-        return; // Exit update after finalizing
-    }
-
-    // Apply the sign of the totalAngle to the rotation
-    float rotationDir = (currentRotation.totalAngle > 0) ? 1.0f : -1.0f;
-    float finalAngle = rotationDir * angleThisFrame;
-
-    // 1. Create the rotation matrix for this frame
-    glm::mat4 rotationMatrix(1.0f);
-    if (currentRotation.axis == 'X') {
-        rotationMatrix = glm::rotate(rotationMatrix, glm::radians(finalAngle), glm::vec3(1.0f, 0.0f, 0.0f));
-    } else if (currentRotation.axis == 'Y') {
-        rotationMatrix = glm::rotate(rotationMatrix, glm::radians(finalAngle), glm::vec3(0.0f, 1.0f, 0.0f));
-    } else if (currentRotation.axis == 'Z') {
-        rotationMatrix = glm::rotate(rotationMatrix, glm::radians(finalAngle), glm::vec3(0.0f, 0.0f, 1.0f));
-    }
-
-    // 2. Apply the matrix to all rotating pieces
-    for (Cubelet* piece : rotatingPieces) {
-        piece->rotateLocal(rotationMatrix);
-    }
-
-    // 3. Update the total rotated angle (using absolute value)
-    currentRotation.currentAngle += angleThisFrame;
-}
-
-// --- Rotation Placeholders ---
+// --- Rotation ---
 void RubiksCube::startRotation(char axis, float layerValue, float angle) {
     if (isRotating()) {
         return;
@@ -205,13 +218,13 @@ void RubiksCube::swapPieceColors(Cubelet* piece, char axis, bool clockwise) {
     if (axis == 'X') { // R/R' affects: 0, 1, 4, 5 (Front, Back, Top, Bottom)
         if (clockwise) { // R
             colors[4] = tempColors[0];
-            colors[5] = tempColors[4];
-            colors[1] = tempColors[5];
-            colors[0] = tempColors[1];
+            colors[1] = tempColors[4];
+            colors[5] = tempColors[1];
+            colors[0] = tempColors[5];
         } else { // L
-            colors[1] = tempColors[0];
-            colors[5] = tempColors[4];
+            colors[5] = tempColors[0];
             colors[1] = tempColors[5];
+            colors[4] = tempColors[1];
             colors[0] = tempColors[4];
         }
     } else if (axis == 'Y') { // U/U' affects: 0, 1, 2, 3 (Front, Back, Right, Left)
@@ -228,15 +241,15 @@ void RubiksCube::swapPieceColors(Cubelet* piece, char axis, bool clockwise) {
         }
     } else if (axis == 'Z') { // F/F' affects: 2, 3, 4, 5 (Right, Left, Top, Bottom)
         if (clockwise) { // F
-            colors[4] = tempColors[2];
-            colors[5] = tempColors[4];
-            colors[3] = tempColors[5];
-            colors[2] = tempColors[3];
-        } else { // B
-            colors[3] = tempColors[2];
-            colors[5] = tempColors[3];
-            colors[4] = tempColors[5];
             colors[2] = tempColors[4];
+            colors[5] = tempColors[2];
+            colors[3] = tempColors[5];
+            colors[4] = tempColors[3];
+        } else { // B
+            colors[3] = tempColors[4];
+            colors[5] = tempColors[3];
+            colors[2] = tempColors[5];
+            colors[4] = tempColors[2];
         }
     }
 }

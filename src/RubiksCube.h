@@ -8,7 +8,6 @@
 
 class RubiksCube {
 private:
-
     struct RotationState {
         char axis = '\0';         // 'X', 'Y', or 'Z'
         int layerValue = 0;       // -1, 0, or 1

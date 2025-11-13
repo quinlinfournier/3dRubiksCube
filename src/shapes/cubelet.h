@@ -20,6 +20,8 @@ struct color {
 
 class Cubelet {
     private:
+        const glm::vec3 CUBE_CENTER = glm::vec3(0.0f, 0.0f, 0.0f);
+
         unsigned int VAO, VBO, EBO;
         Shader& shader;
 

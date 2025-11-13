@@ -28,7 +28,7 @@ Cubelet::~Cubelet() {
 
 // --- Init Geometry ---
 void Cubelet::initVector() {
-    // We define 24 vertices (4 per face) so each face can have a solid, uniform color.
+    // Define 24 vertices (4 per face) so each face can have a solid, uniform color.
     // Face Colors: 0:Front, 1:Back, 2:Right, 3:Left, 4:Top, 5:Bottom
 
     // Vertices: (X, Y, Z, R, G, B) - 6 floats per vertex
@@ -143,11 +143,8 @@ void Cubelet::initVector() {
     // --- Rubik's Cube Logic Helpers ---
 
     void Cubelet::rotateLocal(const glm::mat4& rotationMatrix) {
-        glm::vec3 translation = glm::vec3(modelMatrix[3]); // Extract the translation component of the model matr
-
-        modelMatrix[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f); // Reset translation
-        modelMatrix = rotationMatrix * modelMatrix; // Apply rotation
-        modelMatrix[3] = glm::vec4(translation, 1.0f); // Re-apply translation
+        // Simple: just apply the rotation to the model matrix for orientation
+        modelMatrix = rotationMatrix * modelMatrix;
     }
 
 
@@ -155,17 +152,10 @@ void Cubelet::initVector() {
         // 1. Update the internal position tracker
         this->pos = newPos;
 
-        // 2. ISOLATE ROTATION/SCALE
-        // Copy the current model matrix (which holds R*S*T)
-        // glm::mat4 rotation_and_scale_only = this->modelMatrix;
+        glm::mat4 rotationScale = modelMatrix; // Save the rotation and scale matrix for later
+        rotationScale[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f); // Remove translation
 
-        // Reset the translation component (4th column, indices [3][0] to [3][2])
-        // rotation_and_scale_only[3][0] = 0.0f;
-        // rotation_and_scale_only[3][1] = 0.0f;
-        // rotation_and_scale_only[3][2] = 0.0f;
-
-        this->modelMatrix = glm::scale(glm::mat4(1.0f), scale);
-        this->modelMatrix = glm::translate(this->modelMatrix, pos);
+        modelMatrix = glm::translate(glm::mat4(1.0f), newPos); // Re-apply translation
 
     }
 
