@@ -35,24 +35,22 @@ private:
   /// @details Initialized in initShaders()
   ShaderManager shaderManager;
 
-  // Transformation matrix
-  glm::mat4 modelLeft;      // Model matrix for a 3D object
-  glm::mat4 modelRight;
-  glm::mat4 view;       // The camera's position and orientation in the world
-  glm::mat4 projection; // Orthographic projection matrix maps a 3D scene to a
-                        // 2D viewport
-
-
   // Shapes
-    unique_ptr<RubiksCube> rubiksCube;
+  unique_ptr<RubiksCube> rubiksCube;
+  // Camera
+  glm::mat4 view;
+  glm::mat4 projection;
+  float cameraZ = -8.0f;
+
+  // Shader
+  Shader cubeShader;
+
+  float deltaTime = 0.0f;
+  float lastFrame = 0.0f;
 
   // Keep track of the camera's distance from the origin
   // Moving the camera closer and farther will have the
   // visual effect of making the cube larger and smaller
-  float cameraZ;
-
-  // Shaders
-  Shader cubeShader;
 
   /// @note Call glCheckError() after every OpenGL call to check for errors.
   GLenum glCheckError_(const char *file, int line);
@@ -93,9 +91,6 @@ public:
   /// @details Displays/renders objects on the screen.
   void render();
 
-  /* deltaTime variables */
-  float deltaTime = 0.0f; // Time between current frame and last frame
-  float lastFrame = 0.0f; // Time of last frame (used to calculate deltaTime)
 
   // -----------------------------------
   // Getters

@@ -143,33 +143,32 @@ void Cubelet::initVector() {
     // --- Rubik's Cube Logic Helpers ---
 
     void Cubelet::rotateLocal(const glm::mat4& rotationMatrix) {
-        // This applies the rotation matrix *before* the current model matrix.
-        // Order matters: New_Model = Rotation * Old_Model.
-        this->modelMatrix = rotationMatrix * this->modelMatrix;
+        glm::vec3 translation = glm::vec3(modelMatrix[3]); // Extract the translation component of the model matr
+
+        modelMatrix[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f); // Reset translation
+        modelMatrix = rotationMatrix * modelMatrix; // Apply rotation
+        modelMatrix[3] = glm::vec4(translation, 1.0f); // Re-apply translation
     }
 
+
     void Cubelet::setPosition(glm::vec3 newPos) {
-        // This is the simplified method to permanently update the piece's grid position.
-        // To do this correctly while maintaining the piece's current rotation/orientation,
-        // we need to perform some matrix decomposition or coordinate rotation.
+        // 1. Update the internal position tracker
+        this->pos = newPos;
 
-        // Simplest (but functionally correct) approach for now:
-        // 1. Clear the old translation from the matrix
-        glm::mat4 rotation_and_scale_only = glm::scale(glm::mat4(1.0f), scale); // Start with scale, which is preserved
+        // 2. ISOLATE ROTATION/SCALE
+        // Copy the current model matrix (which holds R*S*T)
+        // glm::mat4 rotation_and_scale_only = this->modelMatrix;
 
-        // Note: The correct implementation here involves extracting the rotation from the current modelMatrix
-        // and combining it with the new translation.
+        // Reset the translation component (4th column, indices [3][0] to [3][2])
+        // rotation_and_scale_only[3][0] = 0.0f;
+        // rotation_and_scale_only[3][1] = 0.0f;
+        // rotation_and_scale_only[3][2] = 0.0f;
 
-        // For a functional cube state update:
-        // Assume the rotation has been fully integrated into the modelMatrix by the time this is called.
+        this->modelMatrix = glm::scale(glm::mat4(1.0f), scale);
+        this->modelMatrix = glm::translate(this->modelMatrix, pos);
 
-        // We update the internal position tracker and the matrix's translation component.
-        // In a final Rubik's Cube, this update also involves updating the face_colors vector!
+    }
 
-        this->pos = newPos; // Update the position tracker
-
-        // The rotation part is the tricky part. For now, we'll keep the existing modelMatrix
-        // and rely on the full rotation being stored by the time this is called.
-        // You will need to implement the face color swapping/update in your RubiksCube class after calling this.
-
+    glm::vec3 Cubelet::getPosition() const {
+        return pos;
     }

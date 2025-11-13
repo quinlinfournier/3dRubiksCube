@@ -64,7 +64,9 @@ class Cubelet {
         void setPosition(glm::vec3 newPos);
 
         // Getters
-        glm::vec3 getPosition() const { return pos; }
+        glm::vec3 getPosition() const;
+
+        std::vector<color>& getFaceColors() { return face_colors; }
 };
 
 
