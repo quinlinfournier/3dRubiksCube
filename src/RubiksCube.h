@@ -12,7 +12,7 @@ private:
         char axis = '\0';         // 'X', 'Y', or 'Z'
         int layerValue = 0;       // -1, 0, or 1
         float totalAngle = 0.0f;  // Target total angle (e.g., 90.0f or -90.0f)
-        float currentAngle = 0.0f;// Angle animated so far (always positive)
+        float currentAngle = 0.0f;// Angle animated (always positive)
         float speed = 270.0f;     // Rotation speed in degrees per second (increased for snappier feel)
     };
 
@@ -36,17 +36,19 @@ private:
 
     // Helper function to get the initial colors for a cubelet at (x, y, z)
     std::vector<color> getInitialColors(int x, int y, int z);
+    glm::vec3 getAxisVector(char axis);
+    glm::vec3 getWorldPositionFromGrid(glm::ivec3 gridPos);
+    glm::ivec3 calculateNewGridPosition(glm::ivec3 oldPos, char axis, bool clockwise);
 
 public:
     RubiksCube(Shader& shader);
     ~RubiksCube() = default;
-    void finalizeRotation();
     void update(float deltaTime); // Used for animation
     void draw(const glm::mat4& view, const glm::mat4& projection);
 
     // Rotation Functions (To be implemented later)
     void startRotation(char axis, float layerValue, float angle);
     bool isRotating() const; // Check if an animation is in progress
-    void swapPieceColors(Cubelet* piece, char axis, bool clockwise);};
+};
 
 #endif // RUBIKSCUBE_H

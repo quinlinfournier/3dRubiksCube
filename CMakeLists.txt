@@ -104,3 +104,6 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} ${PROJECT_HEADERS}
         src/shapes/cubelet.h)
 # Include libraries
 target_link_libraries(${PROJECT_NAME} glfw glm)
+
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")

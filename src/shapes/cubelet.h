@@ -1,75 +1,60 @@
-//
-// Created by quinf on 11/11/2025.
-//
-
 #ifndef M4OEP_QJFOURNI_CUBELET_H
 #define M4OEP_QJFOURNI_CUBELET_H
 
 #include "../shader/shader.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <vector>
-#include <cassert>
 
 struct color {
     float red, green, blue;
-    // Default constructor
     color(float r = 0.0f, float g = 0.0f, float b = 0.0f) : red(r), green(g), blue(b) {}
 };
 
+enum Face { FRONT=0, BACK=1, RIGHT=2, LEFT=3, UP=4, DOWN=5 };
+
 class Cubelet {
-    private:
-        const glm::vec3 CUBE_CENTER = glm::vec3(0.0f, 0.0f, 0.0f);
+private:
+    unsigned int VAO, VBO, EBO;
+    Shader& shader;
 
-        unsigned int VAO, VBO, EBO;
-        Shader& shader;
+    glm::ivec3 gridPos;
+    glm::vec3 worldPos;
+    glm::vec3 scale;
+    glm::mat4 modelMatrix;
 
-        // Position cublet in the 3x3x3 grid
-        glm::vec3 pos;
-        glm::vec3 scale;
+    std::vector<color> face_colors;
+    std::vector<float> vertices;
+    std::vector<unsigned int> indices;
 
-        // 6 Colors
-        std::vector<color> face_colors;
+    void initVector();
+    void initVAO();
+    void initVBO();
+    void initEBO();
 
-        // Store the current transformation matrix
-        glm::mat4 modelMatrix;
+public:
+    Cubelet(Shader& shader, glm::ivec3 gridPos, glm::vec3 scale, std::vector<color> colors);
+    ~Cubelet();
+
+    void draw(const glm::mat4& view, const glm::mat4& projection) const;
+    void rotateLocal(const glm::mat4& rotationMatrix);
+    void updateModelMatrix();
+    void fixFloatError();
 
 
-        std::vector<float> vertices;
-        std::vector<unsigned int> indices;
+    // Getters & Setters
+    glm::ivec3 getGridPosition() const { return gridPos; }
+    void setGridPosition(glm::ivec3 newGridPos);
+    glm::vec3 getWorldPosition() const { return worldPos; }
+    void setWorldPosition(glm::vec3 newWorldPos);
 
+    // Rotation
+    void rotateAroundY(bool clockwise);
+    void rotateAroundX(bool clockwise);
+    void rotateAroundZ(bool clockwise);
 
-
-        void initVector();
-        // Vortex Array Object
-        void initVAO();
-        // Vortex Buffer Object
-        void initVBO();
-        // Element Buffer Object
-        void initEBO();
-
-    public:
-        // Constructor requires 6 colors (one for each face)
-        Cubelet(Shader& shader, glm::vec3 pos, glm::vec3 scale, std::vector<color> colors);
-        ~Cubelet();
-
-        void setUniforms(const glm::mat4 &view, const glm::mat4 &projection) const;
-        void draw(const glm::mat4& view, const glm::mat4& projection) const;
-
-    // --- Methods for Rubik's Cube Logic ---
-
-        // Applies an ongoing rotation to the Cubie's model matrix during animation.
-        void rotateLocal(const glm::mat4& rotationMatrix);
-
-        // Updates the piece's grid position after a rotation is complete.
-        void setPosition(glm::vec3 newPos);
-
-        // Getters
-        glm::vec3 getPosition() const;
-
-        std::vector<color>& getFaceColors() { return face_colors; }
+    void debugColors() const; // Add this method
+    void updateVertexColors(); // Update VBO with current face_colors
 };
 
-
-#endif //M4OEP_QJFOURNI_CUBELET_H
+#endif

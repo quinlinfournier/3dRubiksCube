@@ -40,7 +40,12 @@ private:
   // Camera
   glm::mat4 view;
   glm::mat4 projection;
-  float cameraZ = -8.0f;
+
+  // Camera control variables
+  float cameraX = 0.0f;
+  float cameraY = 1.0f;
+  float cameraDistance = 8.0f;  // Distance from cube
+  float cameraZ = 0.0f;
 
   // Shader
   Shader cubeShader;
@@ -91,6 +96,8 @@ public:
   /// @details Displays/renders objects on the screen.
   void render();
 
+  void updateCamera();
+
 
   // -----------------------------------
   // Getters
@@ -101,6 +108,21 @@ public:
   /// @return true if the window should close
   /// @return false if the window should not close
   bool shouldClose();
+
+    // Helper functions for cube rotations
+    void rotateFront(bool clockwise);
+    void rotateBack(bool clockwise);
+    void rotateRight(bool clockwise);
+    void rotateLeft(bool clockwise);
+    void rotateUp(bool clockwise);
+    void rotateDown(bool clockwise);
+    void rotateMiddle(char axis, bool clockwise);
+    // Scr
+    void scrambleCube();
+    void executeRandomMove();
+
+    // Helper to check if shift is pressed
+    bool isShiftPressed();
 };
 
 #endif // GRAPHICS_ENGINE_H

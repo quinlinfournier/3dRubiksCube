@@ -1,164 +1,362 @@
-//
-// Created by quinf on 11/11/2025.
-//
-
 #include "cubelet.h"
 
-// --- Constructors & Destructors ---
-Cubelet::Cubelet(Shader& shader, glm::vec3 pos, glm::vec3 scale, std::vector<color> colors)
-    : shader(shader), pos(pos), scale(scale), face_colors(colors) {
+Cubelet::Cubelet(Shader& shader, glm::ivec3 gridPos, glm::vec3 scale, std::vector<color> colors)
+    : shader(shader), gridPos(gridPos), scale(scale), face_colors(colors) {
 
-    assert(face_colors.size() == 6 );
-
-    // Initialize the model matrix: Identity -> Translate to Grid Pos -> Scale to Cubelet Size
-    this->modelMatrix = glm::mat4(1.0f);
-    this->modelMatrix = glm::translate(this->modelMatrix, pos);
-    this->modelMatrix = glm::scale(this->modelMatrix, scale);
-
+    worldPos = glm::vec3(gridPos);
+    updateModelMatrix();
     this->initVector();
     this->initVAO();
     this->initVBO();
     this->initEBO();
 }
+
 Cubelet::~Cubelet() {
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
 }
 
-// --- Init Geometry ---
 void Cubelet::initVector() {
-    // Define 24 vertices (4 per face) so each face can have a solid, uniform color.
-    // Face Colors: 0:Front, 1:Back, 2:Right, 3:Left, 4:Top, 5:Bottom
+    vertices.clear();
+    indices.clear();
 
-    // Vertices: (X, Y, Z, R, G, B) - 6 floats per vertex
+    // Helper lambda to push a vertex (x,y,z,r,g,b)
+    auto pushVertex = [&](float x, float y, float z, const color& c) {
+        vertices.push_back(x);
+        vertices.push_back(y);
+        vertices.push_back(z);
+        vertices.push_back(c.red);
+        vertices.push_back(c.green);
+        vertices.push_back(c.blue);
+    };
 
-    // --- FRONT FACE (Z=0.5) --- Color: face_colors[0] (Indices 0-3)
-    this->vertices.insert(this->vertices.end(), {
-        0.5f,  0.5f,  0.5f, face_colors[0].red, face_colors[0].green, face_colors[0].blue,
-       -0.5f,  0.5f,  0.5f, face_colors[0].red, face_colors[0].green, face_colors[0].blue,
-        0.5f, -0.5f,  0.5f, face_colors[0].red, face_colors[0].green, face_colors[0].blue,
-       -0.5f, -0.5f,  0.5f, face_colors[0].red, face_colors[0].green, face_colors[0].blue,
-    });
+    // Define the 6 faces: FRONT, BACK, RIGHT, LEFT, UP, DOWN
+    const glm::vec3 v[8] = {
+        { 0.5f,  0.5f,  0.5f}, // 0: top-right-front
+        {-0.5f,  0.5f,  0.5f}, // 1: top-left-front
+        { 0.5f, -0.5f,  0.5f}, // 2: bottom-right-front
+        {-0.5f, -0.5f,  0.5f}, // 3: bottom-left-front
+        { 0.5f,  0.5f, -0.5f}, // 4: top-right-back
+        {-0.5f,  0.5f, -0.5f}, // 5: top-left-back
+        { 0.5f, -0.5f, -0.5f}, // 6: bottom-right-back
+        {-0.5f, -0.5f, -0.5f}  // 7: bottom-left-back
+    };
 
-    // --- BACK FACE (Z=-0.5) --- Color: face_colors[1] (Indices 4-7)
-    this->vertices.insert(this->vertices.end(), {
-        0.5f,  0.5f, -0.5f, face_colors[1].red, face_colors[1].green, face_colors[1].blue,
-       -0.5f,  0.5f, -0.5f, face_colors[1].red, face_colors[1].green, face_colors[1].blue,
-        0.5f, -0.5f, -0.5f, face_colors[1].red, face_colors[1].green, face_colors[1].blue,
-       -0.5f, -0.5f, -0.5f, face_colors[1].red, face_colors[1].green, face_colors[1].blue,
-    });
+    // Each face: 4 vertices, CCW winding from outside
+    struct Face { int a,b,c,d; int colorIndex; };
+    Face faces[6] = {
+        {0,1,2,3, FRONT},  // Front
+        {4,6,5,7, BACK},   // Back
+        {0,2,4,6, RIGHT},  // Right
+        {1,5,3,7, LEFT},   // Left
+        {0,4,1,5, UP},     // Top
+        {2,3,6,7, DOWN}    // Bottom
+    };
 
-    // --- RIGHT FACE (X=0.5) --- Color: face_colors[2] (Indices 8-11)
-    this->vertices.insert(this->vertices.end(), {
-        0.5f,  0.5f,  0.5f, face_colors[2].red, face_colors[2].green, face_colors[2].blue,
-        0.5f,  0.5f, -0.5f, face_colors[2].red, face_colors[2].green, face_colors[2].blue,
-        0.5f, -0.5f,  0.5f, face_colors[2].red, face_colors[2].green, face_colors[2].blue,
-        0.5f, -0.5f, -0.5f, face_colors[2].red, face_colors[2].green, face_colors[2].blue,
-    });
+    // Build vertices and indices
+    for (int f = 0; f < 6; ++f) {
+        int base = vertices.size() / 6; // 6 floats per vertex
+        pushVertex(v[faces[f].a].x, v[faces[f].a].y, v[faces[f].a].z, face_colors[faces[f].colorIndex]);
+        pushVertex(v[faces[f].b].x, v[faces[f].b].y, v[faces[f].b].z, face_colors[faces[f].colorIndex]);
+        pushVertex(v[faces[f].c].x, v[faces[f].c].y, v[faces[f].c].z, face_colors[faces[f].colorIndex]);
+        pushVertex(v[faces[f].d].x, v[faces[f].d].y, v[faces[f].d].z, face_colors[faces[f].colorIndex]);
 
-    // --- LEFT FACE (X=-0.5) --- Color: face_colors[3] (Indices 12-15)
-    this->vertices.insert(this->vertices.end(), {
-       -0.5f,  0.5f,  0.5f, face_colors[3].red, face_colors[3].green, face_colors[3].blue,
-       -0.5f,  0.5f, -0.5f, face_colors[3].red, face_colors[3].green, face_colors[3].blue,
-       -0.5f, -0.5f,  0.5f, face_colors[3].red, face_colors[3].green, face_colors[3].blue,
-       -0.5f, -0.5f, -0.5f, face_colors[3].red, face_colors[3].green, face_colors[3].blue,
-    });
+        // Two triangles per face (CCW)
+        indices.push_back(base + 0);
+        indices.push_back(base + 1);
+        indices.push_back(base + 2);
 
-    // --- TOP FACE (Y=0.5) --- Color: face_colors[4] (Indices 16-19)
-    this->vertices.insert(this->vertices.end(), {
-        0.5f,  0.5f,  0.5f, face_colors[4].red, face_colors[4].green, face_colors[4].blue,
-       -0.5f,  0.5f,  0.5f, face_colors[4].red, face_colors[4].green, face_colors[4].blue,
-        0.5f,  0.5f, -0.5f, face_colors[4].red, face_colors[4].green, face_colors[4].blue,
-       -0.5f,  0.5f, -0.5f, face_colors[4].red, face_colors[4].green, face_colors[4].blue,
-    });
-
-    // --- BOTTOM FACE (Y=-0.5) --- Color: face_colors[5] (Indices 20-23)
-    this->vertices.insert(this->vertices.end(), {
-        0.5f, -0.5f,  0.5f, face_colors[5].red, face_colors[5].green, face_colors[5].blue,
-       -0.5f, -0.5f,  0.5f, face_colors[5].red, face_colors[5].green, face_colors[5].blue,
-        0.5f, -0.5f, -0.5f, face_colors[5].red, face_colors[5].green, face_colors[5].blue,
-       -0.5f, -0.5f, -0.5f, face_colors[5].red, face_colors[5].green, face_colors[5].blue,
-    });
-
-    // Indices for 6 faces (6 indices per face = 36 total)
-    this->indices.insert(this->indices.end(), {
-        // Front (0-3)
-        0, 1, 2,    1, 3, 2,
-        // Back (4-7)
-        4, 6, 5,    5, 6, 7,
-        // Right (8-11)
-        8, 9, 10,   9, 11, 10,
-        // Left (12-15)
-        12, 14, 13, 13, 14, 15,
-        // Top (16-19)
-        16, 18, 17, 18, 19, 17,
-        // Bottom (20-23)
-        20, 21, 22, 21, 23, 22
-    });
+        indices.push_back(base + 1);
+        indices.push_back(base + 3);
+        indices.push_back(base + 2);
     }
-    void Cubelet::initVAO() {
-        glGenVertexArrays(1, &this->VAO);
-        glBindVertexArray(this->VAO);
+}
+
+void Cubelet::initVAO() {
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+
+    // VBO
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glGenBuffers(1, &EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
+}
+
+void Cubelet::initVBO() {
+    glBindVertexArray(this->VAO);
+
+    glGenBuffers(1, &this->VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
+
+    // Position attribute (layout location 0)
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Color attribute (layout location 1)
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindVertexArray(0);
+}
+
+void Cubelet::initEBO() {
+    glGenBuffers(1, &this->EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, this->indices.size() * sizeof(unsigned int),
+                 indices.data(), GL_STATIC_DRAW);
+}
+
+void Cubelet::draw(const glm::mat4& view, const glm::mat4& projection) const {
+    this->shader.use();
+
+    // Set uniforms
+    this->shader.setMatrix4("model", this->modelMatrix);
+    this->shader.setMatrix4("view", view);
+    this->shader.setMatrix4("projection", projection);
+
+    glBindVertexArray(VAO);
+    glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0); // Use elements instead of arrays
+    glBindVertexArray(0);
+}
+
+
+
+void Cubelet::rotateLocal(const glm::mat4& rotationMatrix) {
+    modelMatrix = rotationMatrix * modelMatrix;
+}
+
+void Cubelet::fixFloatError() {
+    glm::mat4 rotationScale = modelMatrix;
+    rotationScale[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    modelMatrix = glm::translate(glm::mat4(1.0f), worldPos) * rotationScale;
+}
+
+void Cubelet::updateModelMatrix() {
+    modelMatrix = glm::mat4(1.0f);
+    modelMatrix = glm::translate(modelMatrix, worldPos);
+    modelMatrix = glm::scale(modelMatrix, scale);
+}
+
+void Cubelet::setGridPosition(glm::ivec3 newGridPos) {
+    gridPos = newGridPos;
+    worldPos = glm::vec3(gridPos);
+    updateModelMatrix();
+}
+
+
+void Cubelet::setWorldPosition(glm::vec3 newWorldPos) {
+    worldPos = newWorldPos;
+
+    glm::mat3 rotationScale = glm::mat3(modelMatrix);
+    modelMatrix = glm::mat4(rotationScale);
+    modelMatrix[3] = glm::vec4(worldPos, 1.0f);
+}
+
+void Cubelet::rotateAroundY(bool clockwise) {
+    // rotation around cube Y axis (U / D moves affect pieces' local colors)
+    // Cycle: FRONT -> RIGHT -> BACK -> LEFT -> FRONT   (for clockwise Y)
+    color old[6];
+    for (int i=0;i<6;++i) old[i] = face_colors[i];
+
+    if (clockwise) {
+        face_colors[FRONT] = old[LEFT];
+        face_colors[RIGHT] = old[FRONT];
+        face_colors[BACK]  = old[RIGHT];
+        face_colors[LEFT]  = old[BACK];
+        face_colors[UP]    = old[UP];
+        face_colors[DOWN]  = old[DOWN];
+    } else {
+        face_colors[FRONT] = old[RIGHT];
+        face_colors[LEFT]  = old[FRONT];
+        face_colors[BACK]  = old[LEFT];
+        face_colors[RIGHT] = old[BACK];
+        face_colors[UP]    = old[UP];
+        face_colors[DOWN]  = old[DOWN];
+    }
+}
+
+void Cubelet::rotateAroundX(bool clockwise) {
+    // rotation around X axis (R / L)
+    // Cycle: UP -> BACK -> DOWN -> FRONT -> UP   (clockwise looking +X -> -X)
+    color old[6];
+    for (int i=0;i<6;++i) old[i] = face_colors[i];
+
+    if (clockwise) {
+        // new[FRONT] = old[UP], new[DOWN] = old[FRONT], new[BACK] = old[DOWN], new[UP] = old[BACK]
+        face_colors[FRONT] = old[UP];
+        face_colors[DOWN]  = old[FRONT];
+        face_colors[BACK]  = old[DOWN];
+        face_colors[UP]    = old[BACK];
+        // LEFT and RIGHT unchanged
+        face_colors[LEFT]  = old[LEFT];
+        face_colors[RIGHT] = old[RIGHT];
+    } else {
+        // inverse cycle: FRONT -> UP -> BACK -> DOWN -> FRONT
+        face_colors[FRONT] = old[DOWN];
+        face_colors[UP]    = old[FRONT];
+        face_colors[BACK]  = old[UP];
+        face_colors[DOWN]  = old[BACK];
+        face_colors[LEFT]  = old[LEFT];
+        face_colors[RIGHT] = old[RIGHT];
+    }
+}
+
+void Cubelet::rotateAroundZ(bool clockwise) {
+    // rotation around Z axis (F / B)
+    // Cycle: UP -> RIGHT -> DOWN -> LEFT -> UP   (clockwise looking +Z -> -Z)
+    color old[6];
+    for (int i=0;i<6;++i) old[i] = face_colors[i];
+
+    if (clockwise) {
+        face_colors[RIGHT] = old[DOWN];
+        face_colors[UP]  = old[RIGHT];
+        face_colors[LEFT]  = old[UP];
+        face_colors[DOWN]    = old[LEFT];
+        face_colors[FRONT] = old[FRONT];
+        face_colors[BACK]  = old[BACK];
+    } else {
+        face_colors[RIGHT] = old[UP];
+        face_colors[DOWN]    = old[RIGHT];
+        face_colors[LEFT]  = old[DOWN];
+        face_colors[UP]  = old[LEFT];
+        face_colors[FRONT] = old[FRONT];
+        face_colors[BACK]  = old[BACK];
+    }
+}
+
+
+void Cubelet::debugColors() const {
+    std::cout << "Cubelet at (" << gridPos.x << "," << gridPos.y << "," << gridPos.z << "): ";
+    std::cout << "F(" << face_colors[FRONT].red << "," << face_colors[FRONT].green << "," << face_colors[FRONT].blue << ") ";
+    std::cout << "R(" << face_colors[RIGHT].red << "," << face_colors[RIGHT].green << "," << face_colors[RIGHT].blue << ") ";
+    std::cout << "U(" << face_colors[UP].red << "," << face_colors[UP].green << "," << face_colors[UP].blue << ")\n";
+}
+
+void Cubelet::updateVertexColors()
+{
+    // Rebuild interleaved vertex data (x,y,z,r,g,b) for 24 vertices (4 per face).
+    std::vector<float> updatedVertices;
+    updatedVertices.reserve(24 * 6); // 24 vertices * 6 floats each
+
+    // Helper to push 4 corners for a face in the same order as initVector()
+    auto pushFace4 = [&](int faceIndex,
+                         const glm::vec3& v0, const glm::vec3& v1,
+                         const glm::vec3& v2, const glm::vec3& v3)
+    {
+        const color &c = face_colors[faceIndex];
+        auto pushVertex = [&](const glm::vec3 &p) {
+            updatedVertices.push_back(p.x);
+            updatedVertices.push_back(p.y);
+            updatedVertices.push_back(p.z);
+            updatedVertices.push_back(c.red);
+            updatedVertices.push_back(c.green);
+            updatedVertices.push_back(c.blue);
+        };
+
+        // same order used in initVector()
+        pushVertex(v0);
+        pushVertex(v1);
+        pushVertex(v2);
+        pushVertex(v3);
+    };
+
+    // --- FRONT FACE (Z=+0.5) --- face_colors[0]
+    pushFace4(FRONT,
+        glm::vec3( 0.5f,  0.5f,  0.5f),
+        glm::vec3(-0.5f,  0.5f,  0.5f),
+        glm::vec3( 0.5f, -0.5f,  0.5f),
+        glm::vec3(-0.5f, -0.5f,  0.5f)
+    );
+
+    // --- BACK FACE (Z=-0.5) --- face_colors[1]
+    pushFace4(BACK,
+        glm::vec3( 0.5f,  0.5f, -0.5f),
+        glm::vec3(-0.5f,  0.5f, -0.5f),
+        glm::vec3( 0.5f, -0.5f, -0.5f),
+        glm::vec3(-0.5f, -0.5f, -0.5f)
+    );
+
+    // --- RIGHT FACE (X=+0.5) --- face_colors[2] in initVector() you used face_colors[2] for RIGHT
+    pushFace4(RIGHT,
+        glm::vec3( 0.5f,  0.5f,  0.5f),
+        glm::vec3( 0.5f,  0.5f, -0.5f),
+        glm::vec3( 0.5f, -0.5f,  0.5f),
+        glm::vec3( 0.5f, -0.5f, -0.5f)
+    );
+
+    // --- LEFT FACE (X=-0.5) --- face_colors[3]
+    pushFace4(LEFT,
+        glm::vec3(-0.5f,  0.5f,  0.5f),
+        glm::vec3(-0.5f,  0.5f, -0.5f),
+        glm::vec3(-0.5f, -0.5f,  0.5f),
+        glm::vec3(-0.5f, -0.5f, -0.5f)
+    );
+
+    // --- TOP FACE (Y=+0.5) --- face_colors[4]
+    pushFace4(UP,
+        glm::vec3( 0.5f,  0.5f,  0.5f),
+        glm::vec3(-0.5f,  0.5f,  0.5f),
+        glm::vec3( 0.5f,  0.5f, -0.5f),
+        glm::vec3(-0.5f,  0.5f, -0.5f)
+    );
+
+    // --- BOTTOM FACE (Y=-0.5) --- face_colors[5]
+    pushFace4(DOWN,
+        glm::vec3( 0.5f, -0.5f,  0.5f),
+        glm::vec3(-0.5f, -0.5f,  0.5f),
+        glm::vec3( 0.5f, -0.5f, -0.5f),
+        glm::vec3(-0.5f, -0.5f, -0.5f)
+    );
+
+    // Replace CPU-side interleaved vertex buffer
+    this->vertices.swap(updatedVertices);
+
+    // Rebuild indices to match 4-vertex-per-face layout (two triangles per face).
+    this->indices.clear();
+    this->indices.reserve(36);
+    for (unsigned int f = 0; f < 6; ++f) {
+        unsigned int base = f * 4u;
+        // Note: these follow the same pattern you used in initVector()
+        this->indices.push_back(base + 0);
+        this->indices.push_back(base + 1);
+        this->indices.push_back(base + 2);
+
+        this->indices.push_back(base + 1);
+        this->indices.push_back(base + 3);
+        this->indices.push_back(base + 2);
     }
 
-    void Cubelet::initVBO() {
-        glGenBuffers(1, &this->VBO);
-        glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
-        glBufferData(GL_ARRAY_BUFFER, this->vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+    // Upload updated VBO and EBO. Bind VAO so the element array buffer binding is stored in it.
+    glBindVertexArray(this->VAO);
 
-        // Position attribute (layout location 0)
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
+    // VBO
+    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+    glBufferData(GL_ARRAY_BUFFER, this->vertices.size() * sizeof(float),
+                 this->vertices.data(), GL_DYNAMIC_DRAW);
 
-        // Color attribute (layout location 1)
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-    }
+    // EBO (element array buffer)
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, this->indices.size() * sizeof(unsigned int),
+                 this->indices.data(), GL_STATIC_DRAW);
 
-    void Cubelet::initEBO() {
-        glGenBuffers(1, &this->EBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, this->indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
-    }
-
-    // --- Drawing and Transformation ---
-
-    void Cubelet::setUniforms(const glm::mat4 &view, const glm::mat4 &projection) const {
-        // Pass the Cubie's current transformation matrix to the shader
-        this->shader.setMatrix4("model", this->modelMatrix);
-        this->shader.setMatrix4("view", view);
-        this->shader.setMatrix4("projection", projection);
-    }
-
-    void Cubelet::draw(const glm::mat4& view, const glm::mat4& projection) const {
-        this->shader.use();
-        this->setUniforms(view, projection); // Set the unique model matrix for this piece
-
-        glBindVertexArray(this->VAO);
-        glDrawElements(GL_TRIANGLES, this->indices.size(), GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
-    }
-
-    // --- Rubik's Cube Logic Helpers ---
-
-    void Cubelet::rotateLocal(const glm::mat4& rotationMatrix) {
-        // Simple: just apply the rotation to the model matrix for orientation
-        modelMatrix = rotationMatrix * modelMatrix;
-    }
+    // Unbind VAO for safety
+    glBindVertexArray(0);
+}
 
 
-    void Cubelet::setPosition(glm::vec3 newPos) {
-        // 1. Update the internal position tracker
-        this->pos = newPos;
 
-        glm::mat4 rotationScale = modelMatrix; // Save the rotation and scale matrix for later
-        rotationScale[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f); // Remove translation
-
-        modelMatrix = glm::translate(glm::mat4(1.0f), newPos); // Re-apply translation
-
-    }
-
-    glm::vec3 Cubelet::getPosition() const {
-        return pos;
-    }
