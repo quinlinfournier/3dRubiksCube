@@ -91,6 +91,13 @@ void Engine::processInput() {
       keys[key] = false;
   }
 
+    if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS && !keys[GLFW_KEY_P]) {
+        rubiksCube->printPosition();
+        keys[GLFW_KEY_M] = true;  // Prevent repeated printing
+    } else if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) {
+        keys[GLFW_KEY_M] = false;
+    }
+
   // Close window if escape key is pressed
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     glfwSetWindowShouldClose(window, true);

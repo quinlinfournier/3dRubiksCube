@@ -2,6 +2,41 @@
 #include <iostream>
 #include <cmath>
 
+bool RubiksCube::isSolved() const {
+    for (int i = 0; i < 26; i++) {
+        if (cubeletPos[i] != solvedPosition[i]) {
+            // finds a piece that isnt correct
+            return false;
+        }
+    }
+    // All pieces are correct
+    return true;
+}
+
+void RubiksCube::initNumbering() {
+    int id = 0;
+
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            for (int z = -1; z <= 1; z++) {
+                // Skip Center
+                if (x ==0 && y == 0 && z == 0) continue;
+
+                glm::ivec3 pos(x, y, z);
+
+                // Piece 1, 2, 3, ...
+                cubeletID[id] = id;
+                // Where cubelet is now
+                cubeletPos[id] = pos;
+                // Where cubelet belongs
+                solvedPosition[id] = pos;
+
+                id++;
+            }
+        }
+    }
+}
+
 // --- Helper: Get Initial Colors for a Cubie ---
 std::vector<color> RubiksCube::getInitialColors(int x, int y, int z) {
     // Face color mapping (0:Front, 1:Back, 2:Right, 3:Left, 4:Top, 5:Bottom)
@@ -42,9 +77,12 @@ RubiksCube::RubiksCube(Shader& shader) : cubeletShader(shader) {
                     glm::vec3(0.95f, 0.95f, 0.95f), // Size: slightly smaller than 1.0 to show gaps
                     initialColors
                 ));
+                cubeletMap[pack(x, y, z)] = cubelet.back().get();
+
             }
         }
     }
+    initNumbering();
 }
 
 // --- Drawing Function ---
@@ -69,20 +107,30 @@ glm::vec3 RubiksCube::getWorldPositionFromGrid(glm::ivec3 gridPos) {
 
 glm::ivec3 RubiksCube::calculateNewGridPosition(glm::ivec3 oldPos, char axis, bool clockwise) {
     if (axis == 'X') {
-        return clockwise ? glm::ivec3(oldPos.x, -oldPos.z, oldPos.y)
-                        : glm::ivec3(oldPos.x, oldPos.z, -oldPos.y);
-    } else if (axis == 'Y') {
-        return clockwise ? glm::ivec3(oldPos.z, oldPos.y, -oldPos.x)
-                        : glm::ivec3(-oldPos.z, oldPos.y, oldPos.x);
-    } else if (axis == 'Z') {
-        return clockwise ? glm::ivec3(-oldPos.y, oldPos.x, oldPos.z)
-                        : glm::ivec3(oldPos.y, -oldPos.x, oldPos.z);
+        if (clockwise) {
+            return glm::ivec3(oldPos.x, -oldPos.z, oldPos.y);
+        } else {
+            return glm::ivec3(oldPos.x, oldPos.z, -oldPos.y);
+        }
+    } if (axis == 'Y') {
+        if (clockwise) {
+            return  glm::ivec3(oldPos.z, oldPos.y, -oldPos.x);
+        } else {
+            return  glm::ivec3(-oldPos.z, oldPos.y, oldPos.x);
+        }
+    } if (axis == 'Z') {
+        if (clockwise) {
+            return  glm::ivec3(-oldPos.y, oldPos.x, oldPos.z);
+        } else {
+            return glm::ivec3(oldPos.y, -oldPos.x, oldPos.z);
+        }
     }
     return oldPos;
 }
 
 // --- Update Function ---
 void RubiksCube::update(float deltaTime) {
+
     if (!isRotating()) return;
 
     float angleThisFrame = currentRotation.speed * deltaTime;
@@ -105,6 +153,10 @@ void RubiksCube::update(float deltaTime) {
             piece->updateVertexColors(); // Update GPU buffer with new colors
         }
 
+        // Tempory Position Vectors
+        std::vector<glm::ivec3> oldPosition;
+        std::vector<glm::ivec3> newPosition;
+
         for (Cubelet* piece : rotatingPieces) {
             glm::ivec3 oldPos = piece->getGridPosition();
             glm::ivec3 newPos = calculateNewGridPosition(
@@ -112,17 +164,51 @@ void RubiksCube::update(float deltaTime) {
                 currentRotation.axis,
                 currentRotation.totalAngle > 0
             );
-            std::cout << "Finalizing: (" << oldPos.x << "," << oldPos.y << "," << oldPos.z
-                      << ") -> (" << newPos.x << "," << newPos.y << "," << newPos.z << ")\n";
-            piece->setGridPosition(newPos);
-
-            piece->updateModelMatrix(); // This clears any accumulated rotation
+            oldPosition.push_back(oldPos);
+            newPosition.push_back(newPos);
         }
+        // Update Position Tracking
+        for (size_t i = 0; i < oldPosition.size(); i++) {
+            glm::ivec3 oldPos = oldPosition[i];
+            glm::ivec3 newPos = newPosition[i];
+
+            for (int j = 0; j < 26; j++) {
+                if (cubeletPos[j] == oldPos) {
+                    cubeletPos[j] = newPos;
+                    break;
+                }
+            }
+        }
+
+        for (size_t i = 0; i < rotatingPieces.size(); i++) {
+            rotatingPieces[i] -> setGridPosition(newPosition[i]);
+            rotatingPieces[i] -> updateModelMatrix();
+        }
+
+        rebuildPositions();
+        rebuildMap();
+
+        // ADD DEBUG OUTPUT
+        std::cout << "=== POSITION UPDATES ===" << std::endl;
+        for (size_t i = 0; i < oldPosition.size(); i++) {
+            std::cout << "(" << oldPosition[i].x << "," << oldPosition[i].y << "," << oldPosition[i].z
+                      << ") -> (" << newPosition[i].x << "," << newPosition[i].y << "," << newPosition[i].z << ")" << std::endl;
+        }
+
+        debugPositionTracking(oldPosition, newPosition);
 
         // Reset state
         currentRotation.axis = '\0';
         rotatingPieces.clear();
         std::cout << "Rotation completed!\n";
+        // In the rotation completion section, after position updates:
+        // CHECK IF SOLVED
+
+        if (isSolved()) {
+            std::cout << "==================================" << std::endl;
+            std::cout << "🎉🎉🎉 CUBE SOLVED! 🎉🎉🎉" << std::endl;
+            std::cout << "==================================" << std::endl;
+        }
         return;
     }
 
@@ -183,3 +269,60 @@ void RubiksCube::startRotation(char axis, float layerValue, float angle) {
 bool RubiksCube::isRotating() const {
     return currentRotation.axis != '\0';
 }
+
+void RubiksCube::printPosition() {
+    std::cout << "=== Current Cube Positions ===" << std::endl;
+    for (int i = 0; i < 26; i++) {
+        glm::ivec3 current = cubeletPos[i];
+        glm::ivec3 solved = solvedPosition[i];
+        std::cout << "Piece " << i << ": at ("
+                  << current.x << "," << current.y << "," << current.z << ")";
+
+        if (current != solved) {
+            std::cout << "SHOULD be at ("
+                      << solved.x << "," << solved.y << "," << solved.z << ")";
+        } else {
+            std::cout << "Correct";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "Solved: " << (isSolved() ? "YES" : "NO") << std::endl;
+
+}
+void RubiksCube::debugPositionTracking(const std::vector<glm::ivec3>& oldPosition,
+                                       const std::vector<glm::ivec3>& newPosition) {
+    std::cout << "=== DETAILED POSITION DEBUG ===" << std::endl;
+
+    for (size_t i = 0; i < oldPosition.size(); ++i) {
+        std::cout << "Piece: (" << oldPosition[i].x << "," << oldPosition[i].y << "," << oldPosition[i].z
+                  << ") -> (" << newPosition[i].x << "," << newPosition[i].y << "," << newPosition[i].z << ")" << std::endl;
+    }
+
+    // Check if any positions are duplicated
+    std::cout << "=== CHECKING FOR DUPLICATE POSITIONS ===" << std::endl;
+    for (int i = 0; i < 26; i++) {
+        for (int j = i + 1; j < 26; j++) {
+            if (cubeletPos[i] == cubeletPos[j]) {
+                std::cout << "DUPLICATE! Piece " << i << " and " << j
+                          << " both at (" << cubeletPos[i].x << ","
+                          << cubeletPos[i].y << "," << cubeletPos[i].z << ")" << std::endl;
+            }
+        }
+    }
+}
+
+
+void RubiksCube::rebuildMap() {
+    cubeletMap.clear();
+    for (const auto& cptr : cubelet) {
+        glm::ivec3 p = cptr-> getGridPosition();
+        cubeletMap[pack(p.x, p.y, p.z)] = cptr.get();
+    }
+}
+void RubiksCube::rebuildPositions() {
+    // Assumes cubelet.size() == 26 and that cubelet order matches initNumbering() order
+    for (size_t i = 0; i < cubelet.size(); ++i) {
+        cubeletPos[i] = cubelet[i]->getGridPosition();
+    }
+}
+

@@ -5,9 +5,39 @@
 #include <vector>
 #include <memory>
 #include <glm/glm.hpp>
+#include <array>
+#include <string>
+#include <unordered_map>
 
 class RubiksCube {
 private:
+    // Give each a permanent id number
+    std::array<int,26> cubeletID;
+    std::array<int,26> currentOrientation;
+    std::array<int,26> solvedOrientation;
+
+    std::unordered_map<long long, Cubelet*> cubeletMap;
+
+    inline long long pack(int x, int y, int z) {
+        return (long long)((x+2) * 25 + (y+2) * 5 + (z + 2));
+    }
+
+
+    // Track where the ID is located
+    std::array<glm::ivec3,26> cubeletPos;
+
+    // Track where the position should be
+    std::array<glm::ivec3,26> solvedPosition;
+
+
+
+
+    void initNumbering();
+
+    bool isSolved() const;
+
+
+
     struct RotationState {
         char axis = '\0';         // 'X', 'Y', or 'Z'
         int layerValue = 0;       // -1, 0, or 1
@@ -49,6 +79,14 @@ public:
     // Rotation Functions (To be implemented later)
     void startRotation(char axis, float layerValue, float angle);
     bool isRotating() const; // Check if an animation is in progress
+
+    // Debuging
+    void printPosition();
+    void debugPositionTracking(const std::vector<glm::ivec3>& oldPos,
+                               const std::vector<glm::ivec3>& newPos);
+    void rebuildMap();
+    void rebuildPositions();
+
 };
 
 #endif // RUBIKSCUBE_H
