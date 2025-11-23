@@ -9,6 +9,7 @@
 #include "RubiksCube.h"
 #include "shapes/cubelet.h"
 #include "shader/shaderManager.h"
+#include "Solver.h"
 
 using std::vector, std::unique_ptr, std::make_unique, glm::ortho, glm::cross,
     glm::mat4, glm::vec3, glm::vec4;
@@ -20,6 +21,9 @@ using std::vector, std::unique_ptr, std::make_unique, glm::ortho, glm::cross,
  */
 class Engine {
 private:
+
+    std::unique_ptr<Solver> cubeSolver;
+
   /// @brief The actual GLFW window.
   GLFWwindow *window{};
 
@@ -81,6 +85,8 @@ public:
   /// @brief Initializes the shapes to be rendered.
   void initShapes();
 
+  void  initSolver();
+
   /// @brief Processes input from the user.
   /// @details (e.g. keyboard input, mouse input, etc.)
   void processInput();
@@ -123,6 +129,9 @@ public:
 
     // Helper to check if shift is pressed
     bool isShiftPressed();
+
+    void testSolverAccess();
+    void startAutoSolve();
 };
 
 #endif // GRAPHICS_ENGINE_H

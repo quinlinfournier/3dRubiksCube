@@ -1,5 +1,6 @@
 #include "engine.h"
 #include "RubiksCube.h"
+#include "Solver.h"
 
 Engine::Engine() : cameraZ(-8.0f) {
   if (!initWindow()) {
@@ -7,8 +8,9 @@ Engine::Engine() : cameraZ(-8.0f) {
     return;
   }
   initShaders();
-  initShapes();
+  initShapes(); // Create Cube
   initMatrices();
+
 }
 
 Engine::~Engine() {
@@ -158,6 +160,18 @@ void Engine::processInput() {
         if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
             executeRandomMove();
         }
+        if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
+            if (!cubeSolver) {
+                initSolver();
+            }
+            testSolverAccess();
+        }
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+            if (!cubeSolver) {
+                initSolver();
+            }
+            startAutoSolve();
+        }
     }
 
     // Camera controls
@@ -275,5 +289,28 @@ void Engine::executeRandomMove() {
     }
 
     std::cout << "Executed random move: " << randomMove << std::endl;
+}
+
+void Engine::initSolver() {
+    if (rubiksCube && !cubeSolver) {
+        cubeSolver = std::make_unique<Solver>(rubiksCube.get());
+        std::cout << "Solver Init successful" << std::endl;
+        cubeSolver->testCubeAccess(rubiksCube.get());
+    }
+}
+
+void Engine::testSolverAccess() {
+    if (cubeSolver && rubiksCube) {
+        cubeSolver -> testCubeAccess(rubiksCube.get());
+    }
+}
+
+void Engine::startAutoSolve() {
+    if (cubeSolver && rubiksCube) {
+        cubeSolver->solve(rubiksCube.get());
+    } else {
+        if (!cubeSolver) std::cout << "Solver not initialized" << std::endl;
+        if (!rubiksCube) std::cout << "Cube not initialized" << std::endl;
+    }
 }
 

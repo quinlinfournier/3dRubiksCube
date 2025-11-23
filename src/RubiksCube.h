@@ -9,7 +9,11 @@
 #include <string>
 #include <unordered_map>
 
+class Solver;
+
 class RubiksCube {
+
+    friend class Solver;
 private:
     // Give each a permanent id number
     std::array<int,26> cubeletID;
@@ -28,8 +32,6 @@ private:
 
     // Track where the position should be
     std::array<glm::ivec3,26> solvedPosition;
-
-
 
 
     void initNumbering();
@@ -71,6 +73,25 @@ private:
     glm::ivec3 calculateNewGridPosition(glm::ivec3 oldPos, char axis, bool clockwise);
 
 public:
+
+    const std::array<glm::ivec3, 26>& getCurrentPosition() const {return cubeletPos;}
+    const std::array<glm::ivec3, 26>& getSolvedPosition() const {return solvedPosition;}
+    int getCoubeCount() const {return 26;}
+
+    int getCubeletCount() const { return cubelet.size(); }
+    glm::ivec3 getCubeletPosition(int index) const {
+        if (index >= 0 && index < cubelet.size()) {
+            return cubelet[index]->getGridPosition();
+        }
+        return glm::ivec3(0,0,0);
+    }
+    glm::ivec3 getSolvedPosition(int index) const {
+        if (index >= 0 && index < 26) {
+            return solvedPosition[index];
+        }
+        return glm::ivec3(0,0,0);
+    }
+
     RubiksCube(Shader& shader);
     ~RubiksCube() = default;
     void update(float deltaTime); // Used for animation
@@ -86,6 +107,22 @@ public:
                                const std::vector<glm::ivec3>& newPos);
     void rebuildMap();
     void rebuildPositions();
+
+    void executeMove(const std::string& move) {
+        if (move == "R")  startRotation('X', 1.0f, 90.0f);
+        else if (move == "R'") startRotation('X', 1.0f, -90.0f);
+        else if (move == "L")  startRotation('X', -1.0f, -90.0f);
+        else if (move == "L'") startRotation('X', -1.0f, 90.0f);
+        else if (move == "U")  startRotation('Y', 1.0f, 90.0f);
+        else if (move == "U'") startRotation('Y', 1.0f, -90.0f);
+        else if (move == "D")  startRotation('Y', -1.0f, -90.0f);
+        else if (move == "D'") startRotation('Y', -1.0f, 90.0f);
+        else if (move == "F")  startRotation('Z', 1.0f, 90.0f);
+        else if (move == "F'") startRotation('Z', 1.0f, -90.0f);
+        else if (move == "B")  startRotation('Z', -1.0f, -90.0f);
+        else if (move == "B'") startRotation('Z', -1.0f, 90.0f);
+        // Add more moves as needed
+    }
 
 };
 
