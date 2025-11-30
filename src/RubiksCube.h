@@ -22,7 +22,7 @@ private:
 
     std::unordered_map<long long, Cubelet*> cubeletMap;
 
-    inline long long pack(int x, int y, int z) {
+    inline long long pack(int x, int y, int z) const {
         return (long long)((x+2) * 25 + (y+2) * 5 + (z + 2));
     }
 
@@ -36,7 +36,6 @@ private:
 
     void initNumbering();
 
-    bool isSolved() const;
 
 
 
@@ -72,11 +71,16 @@ private:
     glm::vec3 getWorldPositionFromGrid(glm::ivec3 gridPos);
     glm::ivec3 calculateNewGridPosition(glm::ivec3 oldPos, char axis, bool clockwise);
 
+    Cubelet* getCubelet(glm::ivec3 gridPos);
+    const Cubelet* getCubelet(glm::ivec3 gridPos) const;
+
 public:
+
+    bool isSolved() const;
 
     const std::array<glm::ivec3, 26>& getCurrentPosition() const {return cubeletPos;}
     const std::array<glm::ivec3, 26>& getSolvedPosition() const {return solvedPosition;}
-    int getCoubeCount() const {return 26;}
+    int getCubeCount() const {return 26;}
 
     int getCubeletCount() const { return cubelet.size(); }
     glm::ivec3 getCubeletPosition(int index) const {
@@ -107,6 +111,7 @@ public:
                                const std::vector<glm::ivec3>& newPos);
     void rebuildMap();
     void rebuildPositions();
+    // void printCenterColors(RubiksCube* cube);
 
     void executeMove(const std::string& move) {
         if (move == "R")  startRotation('X', 1.0f, 90.0f);
@@ -123,6 +128,11 @@ public:
         else if (move == "B'") startRotation('Z', -1.0f, 90.0f);
         // Add more moves as needed
     }
+    // Debugging helpers (public)
+    void printAllCubelets() const;
+    void printFaceCenters() const;
+
+
 
 };
 

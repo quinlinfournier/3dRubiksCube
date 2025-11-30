@@ -1,47 +1,174 @@
-//
 // Created by quinf on 11/22/2025.
 //
+#ifndef FINAL_PROJECT_QJFOURNI_SOLVER_H
+#define FINAL_PROJECT_QJFOURNI_SOLVER_H
+
 #include "RubiksCube.h"
 #include <vector>
 #include <string>
 #include <memory>
+#include <map>
+#include <array>
+#include <glm/glm.hpp>
 
-#ifndef FINAL_PROJECT_QJFOURNI_SOLVER_H
-#define FINAL_PROJECT_QJFOURNI_SOLVER_H
-
+enum SolverState {
+    IDLE,
+    SOLVING,
+    COMPLETE,
+    FAILED
+};
 
 class Solver {
 private:
-    RubiksCube* cube;
-    // Faces
-    enum Face {
-        UP = 0, // White
-        FRONT = 1, // Blue
-        RIGHT = 2, // Red
-        BACK = 3,  // Green
-        LEFT = 4,  // Orange
-        DOWN = 5   // Yellow
+    // ------- F2L -------
+
+    struct F2LPair {
+        int cornerID;
+        int edgeID;
+        char Color1;
+        char Color2;
+        glm::ivec3 targetCornerPos;
+        glm::ivec3 targetEdgePos;
     };
+
+    // Get the 4 F2L pairs
+    std::vector<F2LPair> getF2LPairs() const;
+
+    // Find a specific F2L Corner Pieces
+    int findF2LCorner(char color1, char color2) const;
+
+    //
+
+    // Old
+    RubiksCube* cube;
+
+    mutable std::map<std::string,int> stuckCount;
 
     // Face Representation [face][row][col]
     char facelet[6][3][3];
 
-    // Face mapping
-    void updateFaceRepresentation();
-    char colorToChar(const color& c);
-    void mapPieceToFace(glm::ivec3 pos, Cubelet* piece);
-    std::vector<std::string> generateSolution(const glm::ivec3* current, const glm::ivec3 solved);
+    std::vector<std::string> moveQueue;
+    std::vector<std::string> currentMoves;
+    int currentStep = 0;
+    int moveCounter = 0;
+    const int MAX_MOVES = 100;
+    char currentTargetColor = 'B';
+
+    SolverState currentState = IDLE;
+
+    mutable std::map<char, int> edgeStuckCounter;
+    mutable std::map<char, std::vector<glm::ivec3>> previousStates;
+
+    // Private helper methods
+    char colorToChar(const color& c) const;
+    int findWhiteEdge(char targetColor, const std::array<glm::ivec3, 26>& solved) const;
+
+    bool isEdgeSolved(int pieceID, const std::array<glm::ivec3, 26>& current,
+                      const std::array<glm::ivec3, 26>& solved, RubiksCube* cubePtr) const;
+
+    std::vector<std::string> solveSingleWhiteEdge(char targetColor,
+                                                 const std::array<glm::ivec3, 26>& current,
+                                                 const std::array<glm::ivec3, 26>& solved,
+                                                 RubiksCube* cubePtr) const;
+
+    std::vector<std::string> solveFirstTwoLayers(char targetColor,
+                                                 const std::array<glm::ivec3, 26>& current,
+                                                 const std::array<glm::ivec3, 26>& solved,
+                                                 RubiksCube* cubePtr) const;
+
+    // New helper methods for simplified approach
+    char getWhiteFace(Cubelet* piece) const;
+    glm::ivec3 getTargetPosition(char targetColor) const;
+    std::vector<std::string> extractAndRealign(char targetColor, char whiteFace) const;
+    std::vector<std::string> handleBottomLayerCase(char targetColor, glm::ivec3 currentPos,
+                                                  char whiteFace, glm::ivec3 targetPos) const;
+    std::vector<std::string> alignBottomEdge(glm::ivec3 currentPos, glm::ivec3 targetPos) const;
+    std::vector<std::string> extractToBottomLayer(glm::ivec3 currentPos, char whiteFace) const;
+
+    std::vector<std::string> generateCycleBreakMoves(char targetColor, glm::ivec3 currentPos, char whiteFace) const {
+        // Less disruptive cycle-breaking sequences
+        // These move the piece to a known good state without destroying progress
+
+        if (currentPos.y == 1) {
+            // In top layer - use standard extraction but with different D moves
+            if (targetColor == 'B' || targetColor == 'G') {
+                return {"F'", "D'", "F", "D"}; // Extract with counter-rotation
+            } else {
+                return {"R'", "D", "R", "D'"}; // Extract with opposite rotation
+            }
+        } else if (currentPos.y == 0) {
+            // In middle layer - extract to different bottom position
+            if (currentPos.z == 1 || currentPos.z == -1) {
+                return {"F'", "D'", "F", "D", "D"}; // Send to opposite side
+            } else {
+                return {"R'", "D", "R", "D", "D"}; // Send to different position
+            }
+        } else {
+            // In bottom layer - rotate to break symmetry
+            return {"D", "D"}; // 180° rotation often breaks cycles
+        }
+    }
 
 public:
     Solver() = default;
     Solver(RubiksCube* cube);
 
+    // State management
+    bool isSolving() const { return currentState == SOLVING; }
+    bool isComplete() const { return currentState == COMPLETE; }
+    bool isFailed() const { return currentState == FAILED; }
+    bool isIdle() const { return currentState == IDLE; }
 
-    // Debugging
+    bool hasNextMove() const {
+        return !currentMoves.empty() || currentState == SOLVING;
+    }
+
+    // Getters
+    SolverState getCurrentState() const { return currentState; }
+    char getCurrentTargetColor() const { return currentTargetColor; }
+    int getMoveCounter() const { return moveCounter; }
+    int getCurrentStep() const { return currentStep; }
+
+    char getFaceColor(Cubelet* piece, Face face) const;
+    std::string getNextMove();
+
+    // Setters
+    void setState(SolverState state) {
+        currentState = state;
+    }
+    void setCube(RubiksCube* newCube) {
+        cube = newCube;
+    }
+    void reset() {
+        currentState = IDLE;
+        currentStep = 0;
+        currentTargetColor = 'B';
+        moveCounter = 0;
+        currentMoves.clear();
+        moveQueue.clear();
+        edgeStuckCounter.clear();
+        previousStates.clear();
+    }
+
+    // Debugging and testing
     void testCubeAccess(RubiksCube* cube);
     void solve(RubiksCube* cube);
-    std::vector<std::string> generateSolution(const std::array<glm::ivec3, 26>& current,const std::array<glm::ivec3, 26>& solved);
-};
 
+    // Utility functions
+    void printState() const {
+        std::cout << "Solver State: ";
+        switch(currentState) {
+            case IDLE: std::cout << "IDLE"; break;
+            case SOLVING: std::cout << "SOLVING"; break;
+            case COMPLETE: std::cout << "COMPLETE"; break;
+            case FAILED: std::cout << "FAILED"; break;
+        }
+        std::cout << " | Target: W-" << currentTargetColor
+                  << " | Moves: " << moveCounter
+                  << " | Step: " << currentStep
+                  << " | Queued: " << currentMoves.size()
+                  << std::endl;
+    }
+};
 
 #endif //FINAL_PROJECT_QJFOURNI_SOLVER_H

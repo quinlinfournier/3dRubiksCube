@@ -4,7 +4,10 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <memory>
+#include <queue>
 #include <vector>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "RubiksCube.h"
 #include "shapes/cubelet.h"
@@ -21,6 +24,11 @@ using std::vector, std::unique_ptr, std::make_unique, glm::ortho, glm::cross,
  */
 class Engine {
 private:
+
+    bool keyLatch[1024] = {false};
+
+    std::queue<int> scrambleMoves;
+    bool isScrambling = false;
 
     std::unique_ptr<Solver> cubeSolver;
 

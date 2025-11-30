@@ -7,8 +7,8 @@ Cubelet::Cubelet(Shader& shader, glm::ivec3 gridPos, glm::vec3 scale, std::vecto
     updateModelMatrix();
     this->initVector();
     this->initVAO();
-    this->initVBO();
-    this->initEBO();
+    // this->initVBO();
+    // this->initEBO();
 }
 
 Cubelet::~Cubelet() {
@@ -241,11 +241,22 @@ void Cubelet::rotateAroundZ(bool clockwise) {
 
 
 void Cubelet::debugColors() const {
-    std::cout << "Cubelet at (" << gridPos.x << "," << gridPos.y << "," << gridPos.z << "): ";
-    std::cout << "F(" << face_colors[FRONT].red << "," << face_colors[FRONT].green << "," << face_colors[FRONT].blue << ") ";
-    std::cout << "R(" << face_colors[RIGHT].red << "," << face_colors[RIGHT].green << "," << face_colors[RIGHT].blue << ") ";
-    std::cout << "U(" << face_colors[UP].red << "," << face_colors[UP].green << "," << face_colors[UP].blue << ")\n";
+    std::cout << "Cubelet at grid ("
+              << gridPos.x << ", "
+              << gridPos.y << ", "
+              << gridPos.z << ")\n";
+
+    static const char* faceNames[6] = {
+        "FRONT", "BACK", "RIGHT", "LEFT", "UP", "DOWN"
+    };
+
+    for (int i = 0; i < face_colors.size(); i++) {
+        std::cout << "  " << faceNames[i]
+                  << ": " << colorToName(face_colors[i])
+                  << std::endl;
+    }
 }
+
 
 void Cubelet::updateVertexColors()
 {
@@ -356,6 +367,31 @@ void Cubelet::updateVertexColors()
 
     // Unbind VAO for safety
     glBindVertexArray(0);
+}
+
+color Cubelet::getFaceColor(Face face) const {
+    if  (face >= 0 && face < face_colors.size()) {
+        return face_colors[face];
+    }
+    else
+        return color(0.0f, 0.0f, 0.0f);
+}
+
+
+std::string Cubelet::colorToName(const color& c) const {
+    // Exact matches used in your RubiksCube.h
+    if (c.red == 1.0f && c.green == 1.0f && c.blue == 1.0f) return "WHITE";
+    if (c.red == 1.0f && c.green == 1.0f && c.blue == 0.0f) return "YELLOW";
+    if (c.red == 0.0f && c.green == 0.0f && c.blue == 1.0f) return "BLUE";
+    if (c.red == 0.0f && c.green == 0.5f && c.blue == 0.0f) return "GREEN";
+    if (c.red == 1.0f && c.green == 0.0f && c.blue == 0.0f) return "RED";
+    if (c.red == 1.0f && c.green == 0.5f && c.blue == 0.0f) return "ORANGE";
+    if (c.red == 0.0f && c.green == 0.0f && c.blue == 0.0f) return "BLACK";
+
+    // otherwise print RGB
+    char buf[64];
+    snprintf(buf, sizeof(buf), "(%.2f, %.2f, %.2f)", c.red, c.green, c.blue);
+    return std::string(buf);
 }
 
 

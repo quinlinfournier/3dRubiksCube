@@ -67,7 +67,11 @@ void Engine::initShaders() {
     std::cout << "ERROR: Failed to load cube shader!" << std::endl;
   } else {
     std::cout << "Shader loaded successfully, ID: " << cubeShader.ID << std::endl;
-  }
+  }this->rubiksCube = make_unique<RubiksCube>(cubeShader);
+
+    // // Debug: print cubelets and centers once at startup
+    // rubiksCube->printAllCubelets();   // prints every cubelet face mapping
+    // rubiksCube->printFaceCenters();   // prints U/D/L/R/F/B center colors
 }
 
 void Engine::initShapes() {
@@ -83,118 +87,71 @@ void Engine::initMatrices() {
 }
 
 void Engine::processInput() {
-  glfwPollEvents();
+    glfwPollEvents();
 
-  // Set keys to true if pressed, false if released
-  for (int key = 0; key < 1024; ++key) {
-    if (glfwGetKey(window, key) == GLFW_PRESS)
-      keys[key] = true;
-    else if (glfwGetKey(window, key) == GLFW_RELEASE)
-      keys[key] = false;
-  }
+    // Track key states
+    for (int key = 0; key < 1024; ++key) {
+        int state = glfwGetKey(window, key);
+        if (state == GLFW_PRESS && !keyLatch[key]) {
+            keyLatch[key] = true;
 
-    if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS && !keys[GLFW_KEY_P]) {
-        rubiksCube->printPosition();
-        keys[GLFW_KEY_M] = true;  // Prevent repeated printing
-    } else if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) {
-        keys[GLFW_KEY_M] = false;
-    }
+            // --- ONE-SHOT ACTIONS BELOW ---
 
-  // Close window if escape key is pressed
-  if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-    glfwSetWindowShouldClose(window, true);
+            // Close window
+            if (key == GLFW_KEY_ESCAPE)
+                glfwSetWindowShouldClose(window, true);
 
-    // Cube rotation controls (only when not already rotating)
-    if (!rubiksCube->isRotating()) {
-        // We need to handle each key separately to properly detect shift combinations
+            // Cube moves (only if cube not rotating)
+            if (!rubiksCube->isRotating()) {
 
-        // R - Right face
-        if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) {
-            bool shiftPressed = isShiftPressed();
-            rotateRight(!shiftPressed); // R clockwise, R' counterclockwise
-        }
+                bool shiftPressed = isShiftPressed();
 
-        // L - Left face
-        else if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
-            bool shiftPressed = isShiftPressed();
-            rotateLeft(!shiftPressed); // L clockwise, L' counterclockwise
-        }
+                if (key == GLFW_KEY_Z) rotateRight(!shiftPressed);
+                if (key == GLFW_KEY_C) rotateLeft(!shiftPressed);
+                if (key == GLFW_KEY_W) rotateUp(!shiftPressed);
+                if (key == GLFW_KEY_X) rotateDown(!shiftPressed);
+                if (key == GLFW_KEY_Q) rotateFront(!shiftPressed);
+                if (key == GLFW_KEY_E) rotateBack(!shiftPressed);
 
-        // U - Up face
-        else if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-            bool shiftPressed = isShiftPressed();
-            rotateUp(!shiftPressed); // U clockwise, U' counterclockwise
-        }
-
-        // D - Down face
-        else if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
-            bool shiftPressed = isShiftPressed();
-            rotateDown(!shiftPressed); // D clockwise, D' counterclockwise
-        }
-
-        // F - Front face
-        else if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-            bool shiftPressed = isShiftPressed();
-            rotateFront(!shiftPressed); // F clockwise, F' counterclockwise
-        }
-
-        // B - Back face
-        else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-            bool shiftPressed = isShiftPressed();
-            rotateBack(!shiftPressed); // B clockwise, B' counterclockwise
-        }
-        // Middle layer controls - A, S, D
-        // M slice (between L and R) - A key
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-            bool shiftPressed = isShiftPressed();
-            rotateMiddle('X',!shiftPressed);
-        }
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-            bool shiftPressed = isShiftPressed();
-            rotateMiddle('Y',!shiftPressed);
-        }
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-            bool shiftPressed = isShiftPressed();
-            rotateMiddle('Z',!shiftPressed);
-        }
-        if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
-            executeRandomMove();
-        }
-        if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
-            if (!cubeSolver) {
-                initSolver();
+                if (key == GLFW_KEY_A) rotateMiddle('X', !shiftPressed);
+                if (key == GLFW_KEY_S) rotateMiddle('Y', !shiftPressed);
+                if (key == GLFW_KEY_D) rotateMiddle('Z', !shiftPressed);
             }
-            testSolverAccess();
-        }
-        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-            if (!cubeSolver) {
-                initSolver();
+
+            // Scramble
+            if (key == GLFW_KEY_P && !isScrambling && !rubiksCube->isRotating()) {
+                for (int f = 0; f < 20; f++)
+                    scrambleMoves.push(rand() % 12);
+                isScrambling = true;
+                std::cout << "Scrambling..." << std::endl;
             }
-            startAutoSolve();
+
+            // Start solver tests
+            if (key == GLFW_KEY_T) {
+                if (!cubeSolver) initSolver();
+                testSolverAccess();
+            }
+
+            // Auto solve
+            if (key == GLFW_KEY_SPACE) {
+                if (!cubeSolver) initSolver();
+                startAutoSolve();
+            }
+        }
+        else if (state == GLFW_RELEASE) {
+            keyLatch[key] = false;
         }
     }
 
-    // Camera controls
-    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
-        // Rotate camera around cube
-        cameraY -= 60.0f * deltaTime;
-    }
-    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-        cameraY += 60.0f * deltaTime;
-    }
-    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-        cameraX -= 60.0f * deltaTime;
-    }
-    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-        cameraX += 60.0f * deltaTime;
-    }
+    // Camera rotation (continuous movement allowed)
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  cameraY -= 60.f * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) cameraY += 60.f * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    cameraX -= 60.f * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  cameraX += 60.f * deltaTime;
 
-    // Update view matrix with new camera angles
     updateCamera();
-
-
-  // Rotate the second cube to mirror the first
 }
+
 
 void Engine::update() {
   // Calculate delta time
@@ -204,7 +161,47 @@ void Engine::update() {
 
   rubiksCube->update(deltaTime);
 
+  if (isScrambling && !rubiksCube->isRotating() && !scrambleMoves.empty()) {
+      int move = scrambleMoves.front();
+      scrambleMoves.pop();
+
+      switch(move) {
+          case 0:  rotateRight(true);   break;  // R
+          case 1:  rotateRight(false);  break;  // R'
+          case 2:  rotateLeft(true);    break;  // L
+          case 3:  rotateLeft(false);   break;  // L'
+          case 4:  rotateUp(true);      break;  // U
+          case 5:  rotateUp(false);     break;  // U'
+          case 6:  rotateDown(true);    break;  // D
+          case 7:  rotateDown(false);   break;  // D'
+          case 8:  rotateFront(true);   break;  // F
+          case 9:  rotateFront(false);  break;  // F'
+          case 10: rotateBack(true);    break;  // B
+          case 11: rotateBack(false);   break;  // B'
+      }
+       if (scrambleMoves.empty()) {
+           isScrambling = false;
+       }
+  }
+
+    if (cubeSolver && cubeSolver->isSolving() && !rubiksCube->isRotating()) {
+        std::string move = cubeSolver->getNextMove();
+
+        if (!move.empty()) {
+            std::cout << "Solver executing next move: " << move << std::endl;
+            rubiksCube->executeMove(move);
+        }
+        else if (cubeSolver->getCurrentState() == SOLVING) {
+            // Check if we're actually solved
+            if (rubiksCube->isSolved()) {
+                std::cout << "Cube solved!" << std::endl;
+                cubeSolver->setState(COMPLETE);
+            }
+        }
+    }
 }
+
+
 
 void Engine::render() {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -270,7 +267,7 @@ void Engine::rotateMiddle(char axis, bool clockwise) {
 void Engine::executeRandomMove() {
     if (rubiksCube->isRotating()) return;
 
-    // Random numbert
+    // Random number
     int randomMove = rand() % 12;
 
     switch(randomMove) {
@@ -314,3 +311,11 @@ void Engine::startAutoSolve() {
     }
 }
 
+void RubiksCube::printAllCubelets() const {
+    // std::cout << "=== ALL CUBELETS DEBUG ===" << std::endl;
+    // for (const auto& piece : cubelet) {
+    //     glm::ivec3 pos = piece->getGridPosition();
+    //     std::cout << "Cubelet at (" << pos.x << "," << pos.y << "," << pos.z << "): ";
+    //     piece->debugColors();
+    // }
+}

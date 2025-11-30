@@ -1,6 +1,17 @@
 #ifndef M4OEP_QJFOURNI_CUBELET_H
 #define M4OEP_QJFOURNI_CUBELET_H
 
+// cubelet.h
+
+// Define the alignment macro based on likely compiler (GCC/Clang/MinGW)
+#if defined(__GNUC__) || defined(__clang__)
+#define CUBELET_ALIGN __attribute__((aligned(16)))
+#elif defined(_MSC_VER)
+#define CUBELET_ALIGN __declspec(align(16))
+#else
+#define CUBELET_ALIGN
+#endif
+
 #include "../shader/shader.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -13,7 +24,7 @@ struct color {
 
 enum Face { FRONT=0, BACK=1, RIGHT=2, LEFT=3, UP=4, DOWN=5 };
 
-class Cubelet {
+class CUBELET_ALIGN Cubelet {
 private:
     unsigned int VAO, VBO, EBO;
     Shader& shader;
@@ -48,6 +59,8 @@ public:
     glm::vec3 getWorldPosition() const { return worldPos; }
     void setWorldPosition(glm::vec3 newWorldPos);
 
+    color getFaceColor(Face face) const;
+
     // Rotation
     void rotateAroundY(bool clockwise);
     void rotateAroundX(bool clockwise);
@@ -55,6 +68,9 @@ public:
 
     void debugColors() const; // Add this method
     void updateVertexColors(); // Update VBO with current face_colors
+
+    std::string colorToName(const color& c) const;
+
 };
 
 #endif
