@@ -195,7 +195,7 @@ void Engine::update() {
             // Check if we're actually solved
             if (rubiksCube->isSolved()) {
                 std::cout << "Cube solved!" << std::endl;
-                cubeSolver->setState(COMPLETE);
+                cubeSolver->setState(WCCOMPLETE);
             }
         }
     }
@@ -292,13 +292,13 @@ void Engine::initSolver() {
     if (rubiksCube && !cubeSolver) {
         cubeSolver = std::make_unique<Solver>(rubiksCube.get());
         std::cout << "Solver Init successful" << std::endl;
-        cubeSolver->testCubeAccess(rubiksCube.get());
+        // cubeSolver->testCubeAccess(rubiksCube.get());
     }
 }
 
 void Engine::testSolverAccess() {
     if (cubeSolver && rubiksCube) {
-        cubeSolver -> testCubeAccess(rubiksCube.get());
+        // cubeSolver -> testCubeAccess(rubiksCube.get());
     }
 }
 
@@ -311,11 +311,11 @@ void Engine::startAutoSolve() {
     }
 }
 
-void RubiksCube::printAllCubelets() const {
+// void RubiksCube::printAllCubelets() const {
     // std::cout << "=== ALL CUBELETS DEBUG ===" << std::endl;
     // for (const auto& piece : cubelet) {
     //     glm::ivec3 pos = piece->getGridPosition();
     //     std::cout << "Cubelet at (" << pos.x << "," << pos.y << "," << pos.z << "): ";
     //     piece->debugColors();
     // }
-}
+// }

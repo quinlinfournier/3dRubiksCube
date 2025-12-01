@@ -183,14 +183,8 @@ void RubiksCube::update(float deltaTime) {
         rebuildPositions();
         rebuildMap();
 
-        // ADD DEBUG OUTPUT
-        // std::cout << "=== POSITION UPDATES ===" << std::endl;
-        // for (size_t i = 0; i < oldPosition.size(); i++) {
-        //     std::cout << "(" << oldPosition[i].x << "," << oldPosition[i].y << "," << oldPosition[i].z
-        //               << ") -> (" << newPosition[i].x << "," << newPosition[i].y << "," << newPosition[i].z << ")" << std::endl;
-        // }
 
-        debugPositionTracking(oldPosition, newPosition);
+
 
         // Reset state
         currentRotation.axis = '\0';
@@ -255,35 +249,16 @@ void RubiksCube::startRotation(char axis, float layerValue, float angle) {
         }
     }
     // After color rotation, add debug output
-    std::cout << "=== AFTER COLOR ROTATION ===\n";
-    for (Cubelet* piece : rotatingPieces) {
-        piece->debugColors();
-    }
+    // std::cout << "=== AFTER COLOR ROTATION ===\n";
+    // for (Cubelet* piece : rotatingPieces) {
+    //     piece->debugColors();
+    // }
 }
 
 bool RubiksCube::isRotating() const {
     return currentRotation.axis != '\0';
 }
 
-void RubiksCube::printPosition() {
-    // std::cout << "=== Current Cube Positions ===" << std::endl;
-    // for (int i = 0; i < 26; i++) {
-    //     glm::ivec3 current = cubeletPos[i];
-    //     glm::ivec3 solved = solvedPosition[i];
-    //     std::cout << "Piece " << i << ": at ("
-    //               << current.x << "," << current.y << "," << current.z << ")";
-    //
-    //     if (current != solved) {
-    //         std::cout << "SHOULD be at ("
-    //                   << solved.x << "," << solved.y << "," << solved.z << ")";
-    //     } else {
-    //         std::cout << "Correct";
-    //     }
-    //     std::cout << std::endl;
-    // }
-    // std::cout << "Solved: " << (isSolved() ? "YES" : "NO") << std::endl;
-
-}
 void RubiksCube::debugPositionTracking(const std::vector<glm::ivec3>& oldPosition,
                                        const std::vector<glm::ivec3>& newPosition) {
     std::cout << "=== DETAILED POSITION DEBUG ===" << std::endl;
@@ -294,16 +269,16 @@ void RubiksCube::debugPositionTracking(const std::vector<glm::ivec3>& oldPositio
     // }
 
     // Check if any positions are duplicated
-    std::cout << "=== CHECKING FOR DUPLICATE POSITIONS ===" << std::endl;
-    for (int i = 0; i < 26; i++) {
-        for (int j = i + 1; j < 26; j++) {
-            if (cubeletPos[i] == cubeletPos[j]) {
-                std::cout << "DUPLICATE! Piece " << i << " and " << j
-                          << " both at (" << cubeletPos[i].x << ","
-                          << cubeletPos[i].y << "," << cubeletPos[i].z << ")" << std::endl;
-            }
-        }
-    }
+    // std::cout << "=== CHECKING FOR DUPLICATE POSITIONS ===" << std::endl;
+    // for (int i = 0; i < 26; i++) {
+    //     for (int j = i + 1; j < 26; j++) {
+    //         if (cubeletPos[i] == cubeletPos[j]) {
+    //             std::cout << "DUPLICATE! Piece " << i << " and " << j
+    //                       << " both at (" << cubeletPos[i].x << ","
+    //                       << cubeletPos[i].y << "," << cubeletPos[i].z << ")" << std::endl;
+    //         }
+    //     }
+    // }
 }
 
 
@@ -340,37 +315,37 @@ const Cubelet* RubiksCube::getCubelet(glm::ivec3 gridPos) const {
 
 
 // Print every cubelet and its face colors (calls Cubelet::debugColors())
-void RubiksCube::printFaceCenters() const {
-    const std::array<Face, 6> faces = { UP, DOWN, RIGHT, LEFT, FRONT, BACK };
-
-    for (Face f : faces) {
-        // Find the cubelet at center of this face
-        glm::ivec3 pos;
-        switch(f) {
-            case UP:    pos = glm::ivec3(0, 1, 0); break;
-            case DOWN:  pos = glm::ivec3(0, -1, 0); break;
-            case FRONT: pos = glm::ivec3(0, 0, 1); break;
-            case BACK:  pos = glm::ivec3(0, 0, -1); break;
-            case RIGHT: pos = glm::ivec3(1, 0, 0); break;
-            case LEFT:  pos = glm::ivec3(-1, 0, 0); break;
-        }
-
-        const Cubelet* found = getCubelet(pos);
-        if (found) {
-            color c = found->getFaceColor(f); // single color
-            char faceChar = '?';
-
-            // Compare to your cube’s color constants
-            if (c.red   == WHITE.red && c.green == WHITE.green && c.blue == WHITE.blue) faceChar = 'W';
-            else if (c.red == YELLOW.red && c.green == YELLOW.green && c.blue == YELLOW.blue) faceChar = 'Y';
-            else if (c.red == RED.red && c.green == RED.green && c.blue == RED.blue) faceChar = 'R';
-            else if (c.red == ORANGE.red && c.green == ORANGE.green && c.blue == ORANGE.blue) faceChar = 'O';
-            else if (c.red == BLUE.red && c.green == BLUE.green && c.blue == BLUE.blue) faceChar = 'B';
-            else if (c.red == GREEN.red && c.green == GREEN.green && c.blue == GREEN.blue) faceChar = 'G';
-
-            std::cout << faceChar << " ";
-        }
-    }
-    std::cout << std::endl;
-}
-
+// void RubiksCube::printFaceCenters() const {
+//     const std::array<Face, 6> faces = { UP, DOWN, RIGHT, LEFT, FRONT, BACK };
+//
+//     for (Face f : faces) {
+//         // Find the cubelet at center of this face
+//         glm::ivec3 pos;
+//         switch(f) {
+//             case UP:    pos = glm::ivec3(0, 1, 0); break;
+//             case DOWN:  pos = glm::ivec3(0, -1, 0); break;
+//             case FRONT: pos = glm::ivec3(0, 0, 1); break;
+//             case BACK:  pos = glm::ivec3(0, 0, -1); break;
+//             case RIGHT: pos = glm::ivec3(1, 0, 0); break;
+//             case LEFT:  pos = glm::ivec3(-1, 0, 0); break;
+//         }
+//
+//         const Cubelet* found = getCubelet(pos);
+//         if (found) {
+//             color c = found->getFaceColor(f); // single color
+//             char faceChar = '?';
+//
+//             // Compare to your cube’s color constants
+//             if (c.red   == WHITE.red && c.green == WHITE.green && c.blue == WHITE.blue) faceChar = 'W';
+//             else if (c.red == YELLOW.red && c.green == YELLOW.green && c.blue == YELLOW.blue) faceChar = 'Y';
+//             else if (c.red == RED.red && c.green == RED.green && c.blue == RED.blue) faceChar = 'R';
+//             else if (c.red == ORANGE.red && c.green == ORANGE.green && c.blue == ORANGE.blue) faceChar = 'O';
+//             else if (c.red == BLUE.red && c.green == BLUE.green && c.blue == BLUE.blue) faceChar = 'B';
+//             else if (c.red == GREEN.red && c.green == GREEN.green && c.blue == GREEN.blue) faceChar = 'G';
+//
+//             std::cout << faceChar << " ";
+//         }
+//     }
+//     std::cout << std::endl;
+// }
+//

@@ -128,9 +128,6 @@ public:
         else if (move == "B'") startRotation('Z', -1.0f, 90.0f);
         // Add more moves as needed
     }
-    // Debugging helpers (public)
-    void printAllCubelets() const;
-    void printFaceCenters() const;
 
 
 
