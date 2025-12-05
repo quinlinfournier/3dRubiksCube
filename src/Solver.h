@@ -16,12 +16,27 @@ enum SolverState {
     SOLVING,
     WCCOMPLETE,
     F2LCOMPLETE,
+    SOLVED,
     FAILED
 };
+enum OLLState { DOT, L_SHAPE, LINE_SHAPE, CROSS_SHAPE };
+
 
 class Solver {
 private:
     // ------- F2L -------
+
+    struct CubeFace {
+        glm::ivec3 normal; // vector pointing out from the face
+        std::string name; // U, d, ...
+        glm::vec3 color; // center
+    };
+
+    Face orientationMap[6] = {UP, DOWN, LEFT, RIGHT, FRONT, BACK};
+
+    std::vector<CubeFace> faces;
+
+    glm::mat3 orientation = glm::mat3(1.0f); // identity = standard orientation
 
     int currentF2LSlot = 0;  // 0-3 for the four F2L slots
     struct F2LPair {
@@ -32,6 +47,14 @@ private:
         glm::ivec3 targetCornerPos;
         glm::ivec3 targetEdgePos;
     };
+
+    bool cubeRotationDone = false;
+    bool cornersAnalyzed = false;
+    bool verificationDone = false;
+    int f2lUMoveCounter = 0;
+    bool orientationResetDone = false;
+    int solveCheck = 0;
+
 
     // Get the 4 F2L pairs (after white cross is solved)
     std::vector<F2LPair> getF2LPairs() const;
@@ -46,31 +69,102 @@ private:
     bool isCornerOrientedCorrectly(Cubelet* corner) const;
 
     // Check if an edge is oriented correctly
-    bool isEdgeOrientedCorrectly(Cubelet* edge, char color1, char color2) const;
 
     // Check if an F2L pair is solved
     bool isF2LPairSolved(const F2LPair& pair) const;
-
     // Get corner colors in correct order
-    void getCornerColors(Cubelet* corner, char& white, char& c1, char& c2) const;
 
     // Get which face a specific color is on for a corner
     Face getColorFace(Cubelet* piece, char targetColor) const;
 
     // Solve a single F2L pair
-    std::vector<std::string> solveF2LPair(const F2LPair& pair) const;
-
+    std::vector<std::string> solveF2LPair(const F2LPair& pair,glm::ivec3 cornerPos,glm::ivec3 edgePos,Cubelet* corner,Cubelet* edge) const;
     // Extract corner from slot if already inserted but wrong
     std::vector<std::string> extractCornerFromSlot(glm::ivec3 pos) const;
 
     // Extract edge from middle layer if stuck
     std::vector<std::string> extractEdgeFromMiddle(glm::ivec3 pos) const;
 
-    // Pair up corner and edge in top layer
-    std::vector<std::string> pairUpPieces(const F2LPair& pair) const;
+    std::vector<std::string> insertF2LPair(const F2LPair& pair, glm::ivec3 cornerPos, glm::ivec3 edgePos, Cubelet* corner, Cubelet* edge) const;
 
-    // Insert paired corner-edge into slot
-    std::vector<std::string> insertF2LPair(const F2LPair& pair, glm::ivec3 cornerPos, glm::ivec3 edgePos) const;
+    std::string faceToString(Face face) const;
+    std::string getSlotName(glm::ivec3 targetPos) const;
+
+    void debugAllFaceColors() const;
+    void debugSpecificCubelet(glm::ivec3 pos) const;
+    void debugAllF2LPositions() const;
+
+    // Solve Last Layer
+    bool isLCorrectOrientation();
+    bool isLineHorizontal();
+
+    bool isYellowCrossSolved() const;
+
+    void rotateVirtualX();
+
+
+    OLLState detectOLLState();
+
+    std::vector<std::string> solveOLLCross();
+
+    int countAlignedEdges();
+    bool edgeMatchesCenter(int face);
+
+    bool cornerMatches(int idx);
+
+    std::vector<std::string> solveCornerPermutation();
+
+    std::vector<std::string> orientCornerOnce();
+
+    void resetOrientationAfterF2L();
+
+    std::vector<std::string> solveCornerOrientation();
+
+    // Small helper — compare two colors with tolerance
+    bool sameColor(const color& c1, const color& c2) const {
+        const float epsilon = 0.01f;
+        return std::abs(c1.red - c2.red) < epsilon &&
+               std::abs(c1.green - c2.green) < epsilon &&
+               std::abs(c1.blue - c2.blue) < epsilon;
+    }
+
+    Face virtualUpFace(const Cubelet* c, RubiksCube* cube) {
+        for (int f = 0; f < 6; f++) {
+            if (c->getFaceColor((Face)f).blue == 0 &&
+                c->getFaceColor((Face)f).red == 1 &&
+                c->getFaceColor((Face)f).green == 1)
+            {
+                // That’s yellow (1,1,0)
+                return (Face)f;
+            }
+        }
+        return UP; // fallback
+    }
+
+    glm::ivec3 centerPos(Face f);
+
+    bool cornerIsCorrect(int idx);
+
+    int findCorrectCornerIndex();
+
+
+    std::vector<std::string> solveLastLayerEdges();
+    bool oppositeCorrect();
+    bool adjacentCorrect();
+    int countPermutedEdges();
+
+    // Solve the last 4 corners
+    bool cornerInCorrectLocation(glm::ivec3 pos);
+
+    int countCorrectCorners();
+
+    glm::ivec3 getFirstCorrectCorner();
+
+    std::vector<std::string> solveLastLayerCorners();
+
+    color centerColor(Face f);
+
+    bool areCornersSolved();
 
 
     // Old
@@ -110,6 +204,14 @@ private:
                                                  const std::array<glm::ivec3, 26>& solved,
                                                  RubiksCube* cubePtr) const;
 
+    std::vector<std::string>  findCorrectEdgePair();
+
+    bool cornerMatchesCenters(const glm::ivec3 &pos);
+
+    std::vector<std::string> finalAUF();
+
+
+
     // New helper methods for simplified approach
     char getWhiteFace(Cubelet* piece) const;
     glm::ivec3 getTargetPosition(char targetColor) const;
@@ -147,6 +249,18 @@ public:
     Solver() = default;
     Solver(RubiksCube* cube);
 
+    // Coordinate-based queries
+    char getColorAtPosition(const glm::ivec3& pos, const glm::ivec3& faceDir) const;
+    glm::ivec3 findFaceWithColor(const glm::ivec3& pos, char targetColor) const;
+
+    // F2L solving
+    std::vector<std::string> solveNextSlot();
+    bool isSlotSolved(int slotIndex) const;
+
+    // Cube rotation handling
+    void applyCubeRotation(const std::string& move);
+    glm::ivec3 rotatePosition(const glm::ivec3& pos) const;
+
     // State management
     bool isSolving() const { return currentState == SOLVING; }
     bool isComplete() const { return currentState == WCCOMPLETE; }
@@ -163,7 +277,7 @@ public:
     int getMoveCounter() const { return moveCounter; }
     int getCurrentStep() const { return currentStep; }
 
-    char getFaceColor(Cubelet* piece, Face face) const;
+    char getFaceColor(const Cubelet* piece, Face face) const;
     std::string getNextMove();
 
     // Setters
@@ -205,6 +319,12 @@ public:
                   << " | Queued: " << currentMoves.size()
                   << std::endl;
     }
+    void debugCornerAnalysis() const;
+    void printColorRGB(const color& c) const;
+    void debugActualColors() const;
+
+
+
 };
 
 #endif //FINAL_PROJECT_QJFOURNI_SOLVER_H

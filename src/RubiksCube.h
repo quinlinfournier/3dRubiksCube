@@ -126,7 +126,17 @@ public:
         else if (move == "F'") startRotation('Z', 1.0f, -90.0f);
         else if (move == "B")  startRotation('Z', -1.0f, -90.0f);
         else if (move == "B'") startRotation('Z', -1.0f, 90.0f);
-        // Add more moves as needed
+        // Middle Layer Movements
+        else if (move == "X") startRotation('X', 0.0f, 90.0f);
+        else if (move == "X'") startRotation('X', 0.0f, -90.0f);
+        else if (move == "Y") startRotation('Y', 0.0f, 90.0f);
+        else if (move == "Y'") startRotation('Y', 0.0f, -90.0f);
+        else if (move == "Z")  startRotation('Z', 0.0f, 90.0f);
+        else if (move == "Z'")  startRotation('Z', 0.0f, -90.0f);
+
+
+
+
     }
 
 
