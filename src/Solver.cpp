@@ -899,7 +899,6 @@ std::vector<std::string> Solver::solveF2LPair(const F2LPair& pair,
             std::cout << "  Face " << face << ": " << color << std::endl;
         }
     }
-    std::cout << "===========================" << std::endl;
 
     // STEP 1: Extract corner if it's in a bottom slot (y == -1) (&& cornerPos != pair.targetCornerPos)
     if (cornerPos.y == -1 ) {
@@ -989,10 +988,7 @@ std::vector<std::string> Solver::insertF2LPair(const F2LPair& pair, glm::ivec3 c
          << faceToString(c2) << " (color2=" << pair.color2 << ")\n";
     cout << "CornerPos: (" << cornerPos.x << ", " << cornerPos.y << ", " << cornerPos.z << ")\n";
     cout << "EdgePos:   (" << edgePos.x   << ", " << edgePos.y   << ", " << edgePos.z   << ")\n";
-    cout << "=========================\n";
-    // =====================================================
-    //                 RLF2L 2  (white RIGHT)  -- cleaned
-    // =====================================================
+
     if (whiteOnCorner == RIGHT)
     {
         // color-specific variants when edge = UP+FRONT
@@ -1055,9 +1051,6 @@ std::vector<std::string> Solver::insertF2LPair(const F2LPair& pair, glm::ivec3 c
         }
     }
 
-    // =====================================================
-    //                 RLF2L 1  (white FRONT)  -- cleaned
-    // =====================================================
     if (whiteOnCorner == FRONT)
     {
         // color-specific variants when edge = RIGHT+UP
@@ -1121,9 +1114,6 @@ std::vector<std::string> Solver::insertF2LPair(const F2LPair& pair, glm::ivec3 c
 
     }
 
-    // =====================================================
-    //                 RLF2L 17/18 (white UP)  -- cleaned
-    // =====================================================
     if (whiteOnCorner == UP)
     {
         if (c1 == LEFT && c2 == UP) {
@@ -1161,9 +1151,7 @@ std::vector<std::string> Solver::insertF2LPair(const F2LPair& pair, glm::ivec3 c
         }
     }
 
-    // =====================================================
     // NO MATCH → FEED FORWARD WITH U
-    // =====================================================
     return {"U"};
 }
 
@@ -1486,8 +1474,6 @@ OLLState Solver::detectOLLState() {
     bool ul_up = (getFaceColor(cuUL, UP) == 'Y');
 
     int count = (int)uf_up + (int)ur_up + (int)ub_up + (int)ul_up;
-
-
 
     // Debug: show what colors are actually on UP face
     std::cout << "[detectOLLState] UP face colors:\n";
@@ -1845,16 +1831,6 @@ bool Solver::cornerInCorrectLocation_Fixed(glm::ivec3 pos) {
 
 int Solver::countCorrectCorners_Fixed() {
     std::cout << "\n=== CHECKING CORNER LOCATIONS ===" << std::endl;
-
-    // int count = 0;
-    //
-    // if (cornerInCorrectLocation_Fixed({1, 1, 1})) count++;
-    // if (cornerInCorrectLocation_Fixed({1, 1, -1})) count++;
-    // if (cornerInCorrectLocation_Fixed({-1, 1, -1})) count++;
-    // if (cornerInCorrectLocation_Fixed({-1, 1, 1})) count++;
-    //
-    // std::cout << "Total correct: " << count << "/4" << std::endl;
-
     return countCorrectCornerOrientations();
 }
 
@@ -2108,7 +2084,7 @@ std::vector<std::string> Solver::orientLastLayerCorners() {
         return false;
     }
 
-    // Sort both to compare (order doesn't matter for location correctness)
+    // Sort both to compare
     std::sort(cornerColors.begin(), cornerColors.end());
     std::sort(centerColors.begin(), centerColors.end());
 
@@ -2216,7 +2192,7 @@ bool Solver::areCornersSolved_Fixed() {
     Cubelet* corner3 = cube->getCubelet({-1, 1, 1});
     if (corner3) {
         char left3 = getFaceColor(corner3, LEFT);
-        char back3 = getFaceColor(corner3, BACK);  // Shows at FRONT position
+        char back3 = getFaceColor(corner3, BACK);
 
         // Should be O on LEFT and G on BACK
         if (left3 != 'O' || back3 != 'G') {
@@ -2258,7 +2234,6 @@ void Solver::debugCurrentCornerState() {
         }
         std::cout << std::endl;
     }
-    std::cout << "=============================" << std::endl;
 }
 
 std::vector<std::string> Solver::finalAUF() {
@@ -2282,7 +2257,7 @@ std::vector<std::string> Solver::finalAUF() {
 
         if (edgesGood && cornersGood) {
             std::cout << "AUF complete — cube solved!\n";
-            return {};  // no moves needed
+            return {};
         }
 
         // If not solved, rotate U and check again
@@ -2411,7 +2386,6 @@ void Solver::debugCenterColors() {
                       << ") -> '" << colorChar << "'" << std::endl;
         }
     }
-    std::cout << "==================================================" << std::endl;
 }
 
 void Solver::debugFaceIndexOrder() {
@@ -2445,9 +2419,7 @@ bool Solver::isCornerCorrectlyOriented(glm::ivec3 pos) const {
 
 // Debug display functions
 void Solver::displayDebugInfo() const {
-    std::cout << "\n========================================" << std::endl;
     std::cout << "         DEBUG FREEZE ACTIVE" << std::endl;
-    std::cout << "========================================" << std::endl;
 
     displayCurrentState();
     displayPlannedMoves();
@@ -2457,7 +2429,6 @@ void Solver::displayDebugInfo() const {
     std::cout << "  G - Step through one move" << std::endl;
     std::cout << "  H - Toggle step-through mode" << std::endl;
     std::cout << "  J - Show current piece positions" << std::endl;
-    std::cout << "========================================\n" << std::endl;
 }
 
 void Solver::displayCurrentState() const {
@@ -2521,5 +2492,4 @@ void Solver::debugExpectedCornerColors() {
     std::cout << "4. Corner at (-1,1,1) - ULF: UP=Y, FRONT=G, LEFT=O" << std::endl;
     std::cout << "   After XX: visible faces are UP=Y, BACK=G, LEFT=O" << std::endl;
 
-    std::cout << "=================================================" << std::endl;
 }
