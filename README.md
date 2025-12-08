@@ -22,32 +22,20 @@ Main Program Complexity and Usability: 40/40 points
  - Fully interactive with validated user input 
  - 3D graphics project beyond guided project scope
  - animations and proper Rubik's Cube mechanics
+================== ADDITION ==================
+   I am working on Adding auto solving to the rubiks cube project I how ever was unsuccessful at getting the cube to completely solve
 
-Interactivity of Program: 20/20 points
- - Fully interactive keyboard controls for all cube moves
- - Input validation prevents moves during animations
- - Responsive controls that enhance program functionality
- - Proper debouncing to prevent repeated triggers
+   But i did get it to solve most of the way
+   It can create the White Cross: 45 points
+   then flips the cube
+   It then inserts the four corners  35 points
+   It then solves the yellow cross 20
+   Then it tries to puts the correct edge piece in the right spot and because of the flip it messes up
+   Then it tried to put corners in the right position 10
 
-User Experience: 18/20 points
- - Not Intuitive Rubik's Cube notation controls
- - Clear color coding following standard Rubik's colors
- - Minor deduction: Limited camera controls and no start/win screens yet
+   Also added debuging through out the entire program
 
-Code Organization: 20/20 points
- - Classes and folders
- - Clear separation of concerns
- - Proper use of header files and implementation separation
+   Time: 50+ hrs 20 pts
 
-Style and Documentation: 0 point deduction
- - Comprehensive code comments throughout
- - Detailed README with installation and usage instructions
- - Clear variable naming and consistent code style
+   130 Total points
 
-Video: 0 point deduction
- - Includes multiple demo runs showing different moves
- - Demonstrate input validation during animations
- - Will showcase the 3D rendering and smooth animations
-
-Lifespan of Project: 0 point deduction
- - Project existed for over a week
