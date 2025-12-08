@@ -102,7 +102,8 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} ${PROJECT_HEADERS}
         src/RubiksCube.h
         src/shapes/cubelet.cpp
         src/shapes/cubelet.h
-        src/Solver.h)
+        src/Solver.h
+)
 # Include libraries
 target_link_libraries(${PROJECT_NAME} glfw glm)
 
