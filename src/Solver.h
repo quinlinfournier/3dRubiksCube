@@ -33,7 +33,6 @@ public:
     // Main interface
     void solve(RubiksCube* cube);
     std::string getNextMove();
-    void reset();
 
     // State queries
     bool isSolving() const { return currentState == SOLVING; }
@@ -73,11 +72,6 @@ public:
     }
     bool isDebugFrozen() const { return debugFreeze; }
     bool isStepThrough() const { return stepThroughMode; }
-
-    void printState() const;
-    void debugAllFaceColors() const;
-    void debugSpecificCubelet(glm::ivec3 pos) const;
-    void testCubeAccess(RubiksCube* cube);
 
 private:
     // Core data
@@ -153,17 +147,6 @@ private:
                std::abs(c1.green - c2.green) < epsilon &&
                std::abs(c1.blue - c2.blue) < epsilon;
     }
-    
-    Face virtualUpFace(const Cubelet* c, RubiksCube* cube) {
-        for (int f = 0; f < 6; f++) {
-            if (c->getFaceColor((Face)f).blue == 0 &&
-                c->getFaceColor((Face)f).red == 1 &&
-                c->getFaceColor((Face)f).green == 1) {
-                return (Face)f;
-            }
-        }
-        return UP;
-    }
 
     // White Cross
     int findWhiteEdge(char targetColor, const std::array<glm::ivec3, 26>& solved) const;
@@ -197,40 +180,23 @@ private:
     std::vector<std::string> solveOLLCross();
     void resetOrientationAfterF2L();
 
-    // PLL - OLD FUNCTIONS (keep for compatibility)
-    bool edgeMatchesCenter(int face);
-    int countAlignedEdges();
-    int countPermutedEdges();
-    bool adjacentCorrect();
-    bool oppositeCorrect();
+    // PLL
     std::vector<std::string> solveLastLayerEdges();
     std::vector<std::string> findCorrectEdgePair();
     bool isEdgeAligned(int edgeIndex);
-    bool isCornerFullyCorrect(int cornerIndex);
     bool isCornerCorrectlyOriented(int cornerIndex);
     bool isCornerInCorrectLocation(int cornerIndex);
     int countCorrectCornersLocations();
     std::vector<std::string> orientCorners();
 
 
-    bool cornerInCorrectLocation(glm::ivec3 pos);
-    int countCorrectCorners();
-    glm::ivec3 getFirstCorrectCorner();
-    std::vector<std::string> solveLastLayerCorners();
-    bool cornerMatchesCenters(const glm::ivec3& pos);
-    int findCorrectCornerIndex();
     bool cornerIsCorrect(int idx);
     bool cornerMatches(int idx);
-    bool areCornersSolved();
     bool isCornerCorrectlyOriented(glm::ivec3 pos) const;
-    std::vector<std::string> determineAPermDirection();
-    std::vector<std::string> orientLastLayerCorners();
-    std::vector<std::string> finalAUF();
-    
+
     color centerColor(Face f);
-    glm::ivec3 centerPos(Face f);
-    
-    // PLL - NEW FIXED FUNCTIONS
+
+    // PLL
     bool edgeMatchesCenter_Fixed(int edgeIndex);
     int countAlignedEdges_Fixed();
     std::vector<std::string> solveLastLayerEdges_Fixed();
@@ -238,57 +204,15 @@ private:
     bool cornerInCorrectLocation_Fixed(glm::ivec3 pos);
     int countCorrectCornerOrientations();
     int countCorrectCorners_Fixed();
-    glm::ivec3 getFirstCorrectCorner_Fixed();
     std::vector<std::string> solveLastLayerCorners_Fixed();
     bool areCornersSolved_Fixed();
-    bool isCubeActuallySolved();
-    bool hasAdjacentCornerSwapPattern();
 
 
     // Debug
-    void displayDebugInfo() const;
-    void displayCurrentState() const;
-    void displayPlannedMoves() const;
-    void dumpCentersAndUEdges() const;
     void debugFaceIndexOrder();
-    void debugAllF2LPositions() const;
 
-    void debugCurrentCornerState();
     void debugCenterColors();
-    void debugExpectedCornerColors();
 
-
-
-    
-    std::vector<std::string> solveFirstTwoLayers(char targetColor,
-                                                 const std::array<glm::ivec3, 26>& current,
-                                                 const std::array<glm::ivec3, 26>& solved,
-                                                 RubiksCube* cubePtr) const;
-    
-    std::vector<std::string> generateCycleBreakMoves(char targetColor, glm::ivec3 currentPos, 
-                                                     char whiteFace) const {
-        if (currentPos.y == 1) {
-            if (targetColor == 'B' || targetColor == 'G') {
-                return {"F'", "D'", "F", "D"};
-            } else {
-                return {"R'", "D", "R", "D'"};
-            }
-        } else if (currentPos.y == 0) {
-            if (currentPos.z == 1 || currentPos.z == -1) {
-                return {"F'", "D'", "F", "D", "D"};
-            } else {
-                return {"R'", "D", "R", "D", "D"};
-            }
-        } else {
-            return {"D", "D"};
-        }
-    }
-    std::string getEdgeKey(const F2LPair& pair, glm::ivec3 edgePos, Cubelet* edge) const;
-    std::string getCornerKey(const F2LPair& pair, glm::ivec3 cornerPos, Cubelet* corner) const;
-    bool checkEdgeStuck(const std::string& key, int maxCount = 3);
-    bool checkCornerStuck(const std::string& key, int maxCount = 3);
-    void resetEdgeTracking();
-    void resetCornerTracking();
 };
 
 #endif // FINAL_PROJECT_QJFOURNI_SOLVER_H
