@@ -50,6 +50,8 @@ public:
     void setState(SolverState state) { currentState = state; }
     void setCube(RubiksCube* newCube) { cube = newCube; }
 
+    bool fullySolved = false;
+
     // Debug controls
     void toggleDebugFreeze() { 
         debugFreeze = !debugFreeze; 
@@ -128,6 +130,10 @@ private:
     // OLL/PLL state
     bool orientationResetDone = false;
     int solveCheck = 0;
+    bool baseEdge = false;
+
+    std::map<std::string, int> edgeStuckCount;  // For edge tracking
+    std::map<std::string, int> cornerStuckCount; // For corner tracking
     
     // Debug state
     bool debugFreeze = false;
@@ -199,7 +205,14 @@ private:
     bool oppositeCorrect();
     std::vector<std::string> solveLastLayerEdges();
     std::vector<std::string> findCorrectEdgePair();
-    
+    bool isEdgeAligned(int edgeIndex);
+    bool isCornerFullyCorrect(int cornerIndex);
+    bool isCornerCorrectlyOriented(int cornerIndex);
+    bool isCornerInCorrectLocation(int cornerIndex);
+    int countCorrectCornersLocations();
+    std::vector<std::string> orientCorners();
+
+
     bool cornerInCorrectLocation(glm::ivec3 pos);
     int countCorrectCorners();
     glm::ivec3 getFirstCorrectCorner();
@@ -270,6 +283,12 @@ private:
             return {"D", "D"};
         }
     }
+    std::string getEdgeKey(const F2LPair& pair, glm::ivec3 edgePos, Cubelet* edge) const;
+    std::string getCornerKey(const F2LPair& pair, glm::ivec3 cornerPos, Cubelet* corner) const;
+    bool checkEdgeStuck(const std::string& key, int maxCount = 3);
+    bool checkCornerStuck(const std::string& key, int maxCount = 3);
+    void resetEdgeTracking();
+    void resetCornerTracking();
 };
 
 #endif // FINAL_PROJECT_QJFOURNI_SOLVER_H

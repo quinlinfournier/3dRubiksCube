@@ -22,6 +22,10 @@ Solver::Solver(RubiksCube *cube) : cube(cube) {
     moveCounter = 0;
     currentF2LSlot = 0;
 
+    stuckCount.clear();
+    edgeStuckCount.clear();
+    cornerStuckCount.clear();
+
     for (int face = 0; face < 6; face++) {
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3; col++) {
@@ -307,12 +311,6 @@ std::string Solver::getNextMove() {
 
         currentMoves = solveLastLayerEdges_Fixed();
 
-        if (!currentMoves.empty()) {
-            std::string nextMove = currentMoves.front();
-            currentMoves.erase(currentMoves.begin());
-            return nextMove;
-        }
-
         if (countAlignedEdges_Fixed() == 4) {
             std::cout << "PLL EDGES COMPLETE!" << std::endl;
             currentStep = 4;
@@ -320,23 +318,17 @@ std::string Solver::getNextMove() {
         }
     }
 
-    // STEP 4: PLL CORNERS - USE FIXED VERSION
+    // STEP 4: PLL CORNERS
     if (currentStep == 4) {
         std::cout << "=== PLL CORNER PERMUTATION ===" << std::endl;
-
-        currentMoves = solveLastLayerCorners_Fixed();
-
-        if (!currentMoves.empty()) {
-            std::string nextMove = currentMoves.front();
-            currentMoves.erase(currentMoves.begin());
-            return nextMove;
-        }
-
-        if (areCornersSolved_Fixed()) {
+        if (fullySolved) {
             std::cout << "CUBE SOLVED!" << std::endl;
             currentState = WCCOMPLETE;
+            currentMoves = {"R'", "X'", "L","R'", "X'", "L"};
             return "";
         }
+
+        currentMoves = solveLastLayerCorners_Fixed();
     }
 
     return "";
@@ -428,6 +420,10 @@ void Solver::solve(RubiksCube* cube) {
     currentMoves.clear();
     moveQueue.clear();
     moveCounter = 0;
+
+    stuckCount.clear();
+    edgeStuckCount.clear();
+    cornerStuckCount.clear();
 }
 
 
@@ -1547,11 +1543,9 @@ std::vector<std::string> Solver::solveOLLCross() {
 // PLL
 int Solver::countAlignedEdges_Fixed() {
     int count = 0;
-
     std::cout << "\n=== CHECKING EDGE ALIGNMENT ===" << std::endl;
-
     for (int i = 0; i < 4; i++) {
-        if (edgeMatchesCenter_Fixed(i)) {
+        if (isEdgeAligned(i)) {
             count++;
         }
     }
@@ -1669,79 +1663,98 @@ bool Solver::oppositeCorrect() {
 }
 
 std::vector<std::string> Solver::solveLastLayerEdges_Fixed() {
-    int aligned = countAlignedEdges_Fixed();
-
-    if (aligned == 4) {
-        std::cout << "All edges aligned!" << std::endl;
-        return {};
-    }
-
-    if (aligned == 0) {
-        std::cout << "No edges aligned, rotating U" << std::endl;
-        return {"U"};
-    }
-
-    if (aligned == 2) {
-        bool match0 = edgeMatchesCenter_Fixed(0);
-        bool match1 = edgeMatchesCenter_Fixed(1);
-        bool match2 = edgeMatchesCenter_Fixed(2);
-        bool match3 = edgeMatchesCenter_Fixed(3);
-
-        bool adjacent = (match0 && match1) || (match1 && match2) ||
-                       (match2 && match3) || (match3 && match0);
-
-        if (adjacent) {
-            std::cout << "Two adjacent edges aligned" << std::endl;
-
-            if (!(match0 && match1)) {
-                return {"U"};
-            }
-
-            Cubelet* rightEdge = cube->getCubelet({1, 1, 0});
-            Cubelet* frontCenter = cube->getCubelet({0, 0, 1});
-
-            color rightEdgeColor = rightEdge->getFaceColor(RIGHT);
-            color frontCenterColor = frontCenter->getFaceColor(BACK);
-
-            bool rightGoesToFront = sameColor(rightEdgeColor, frontCenterColor);
-
-            if (rightGoesToFront) {
-                std::cout << "Using Ua (counterclockwise)" << std::endl;
-                return {"R'", "U", "R'", "U'", "R'", "U'", "R'", "U", "R", "U", "R'", "R'"};
-            } else {
-                std::cout << "Using Ub (clockwise)" << std::endl;
-                return {"R'", "R'", "U'", "R'", "U'", "R", "U", "R", "U", "R", "U'", "R"};
-            }
-        }
-
-        std::cout << "Two opposite edges aligned" << std::endl;
-
-        if (!match0) {
-            return {"U"};
-        }
-
-        Cubelet* rightEdge = cube->getCubelet({1, 1, 0});
-        Cubelet* frontCenter = cube->getCubelet({0, 0, 1});
-
-        color rightEdgeColor = rightEdge->getFaceColor(RIGHT);
-        color frontCenterColor = frontCenter->getFaceColor(BACK);
-
-        bool rightGoesToFront = sameColor(rightEdgeColor, frontCenterColor);
-
-        if (rightGoesToFront) {
-            std::cout << "Using Ua" << std::endl;
-            return {"R'", "U", "R'", "U'", "R'", "U'", "R'", "U", "R", "U", "R'", "R'"};
+    std::cout << "\n=== PLL EDGE ANALYSIS ===" << std::endl;
+    //Edge 0: FRONT edge (0,1,1) = Green-Yellow edge
+    //Edge 1: RIGHT edge (1,1,0) = Blue-Yellow edge
+    //Edge 2: BACK edge (0,1,-1) = Red-Yellow edge
+    //Edge 3: LEFT edge (-1,1,0) = Orange-Yellow edge
+    // Define edge positions and their names
+    if (!baseEdge) {
+        bool match = isEdgeAligned(3);
+        if (match) {
+            baseEdge = true;
         } else {
-            std::cout << "Using Ub" << std::endl;
-            return {"R'", "R'", "U'", "R'", "U'", "R", "U", "R", "U", "R", "U'", "R"};
+            return{"U"};
+        }
+    } else {
+        if (isEdgeAligned(0)) {
+            std::cout << "green lined up" << endl;
+            baseEdge = false;
+            return {"B'", "U'", "U'", "B", "U", "B'", "U", "B", "U'"};
+        } else if (isEdgeAligned(1)){
+            std::cout << "red lined up" << endl;
+        baseEdge = false;
+        return {"U'", "R'", "U'", "R", "U'", "R'", "U'", "U'", "R", "U'", "L'", "U'", "L", "U'", "L'", "U'", "U'", "L", "U'"}; //"B'", "U", "U", "B", "U", "B'", "U", "B", "U"};
+        } else {
+            std::cout << "blue lined up" << endl;
+            baseEdge = false;
+            return {"R'", "U'", "U'", "R", "U", "R'", "U", "R", "U'"};
         }
     }
 
-    std::cout << "Unexpected alignment count: " << aligned << ", rotating U" << std::endl;
-    return {"U"};
+    // Don't add any moves yet - just return empty
+    return {};
 }
 
+bool Solver::isEdgeAligned(int edgeIndex) {
+    // Define edge positions and their properties
+    struct EdgeInfo {
+        glm::ivec3 position;
+        std::string name;
+        Face edgeFaceToCheck;
+        glm::ivec3 centerPosition;
+        Face centerFaceToCheck;
+    };
 
+    static const EdgeInfo edges[4] = {
+        {{0, 1, 1}, "FRONT", FRONT, {0, 0, 1}, FRONT},
+        {{1, 1, 0}, "RIGHT", RIGHT, {1, 0, 0}, RIGHT},
+        {{0, 1, -1}, "BACK", BACK, {0, 0, -1}, BACK},
+        {{-1, 1, 0}, "LEFT", LEFT, {-1, 0, 0}, LEFT}
+    };
+
+    if (edgeIndex < 0 || edgeIndex >= 4) {
+        std::cout << "ERROR: Invalid edge index " << edgeIndex << std::endl;
+        return false;
+    }
+
+    const EdgeInfo& edgeInfo = edges[edgeIndex];
+
+    // Get the center piece
+    Cubelet* centerPiece = cube->getCubelet(edgeInfo.centerPosition);
+    if (!centerPiece) {
+        std::cout << "ERROR: Could not get center piece for edge " << edgeIndex
+                  << " at position (" << edgeInfo.centerPosition.x << ","
+                  << edgeInfo.centerPosition.y << "," << edgeInfo.centerPosition.z << ")" << std::endl;
+        return false;
+    }
+
+    // Get the edge piece
+    Cubelet* edgePiece = cube->getCubelet(edgeInfo.position);
+    if (!edgePiece) {
+        std::cout << "ERROR: Could not get edge piece for edge " << edgeIndex
+                  << " at position (" << edgeInfo.position.x << ","
+                  << edgeInfo.position.y << "," << edgeInfo.position.z << ")" << std::endl;
+        return false;
+    }
+
+    // Get the colors
+    color centerColorRGB = centerPiece->getFaceColor(edgeInfo.centerFaceToCheck);
+    color edgeColorRGB = edgePiece->getFaceColor(edgeInfo.edgeFaceToCheck);
+
+    // Check if they match
+    bool match = sameColor(edgeColorRGB, centerColorRGB);
+
+    // Optional: Print debug info
+    char centerChar = colorToChar(centerColorRGB);
+    char edgeChar = colorToChar(edgeColorRGB);
+
+    std::cout << "Edge " << edgeIndex << " (" << edgeInfo.name << "): "
+              << "Edge color = " << edgeChar << ", Center color = " << centerChar
+              << " -> " << (match ? "ALIGNED" : "MISALIGNED") << std::endl;
+
+    return match;
+}
 
 
 std::vector<std::string> Solver::findCorrectEdgePair() {
@@ -1872,46 +1885,153 @@ glm::ivec3 Solver::getFirstCorrectCorner_Fixed() {
 }
 
 std::vector<std::string> Solver::solveLastLayerCorners_Fixed() {
-    std::cout << "\n=== FINAL PLL CORNER PHASE ===" << std::endl;
+    int correctLocation = countCorrectCornersLocations();
+    std::cout << "correctLocation: " << correctLocation << std::endl;
+    if (correctLocation == 0) {
+        std::cout << "Case A.5" << std::endl;
+        return {"R'", "U", "L", "U'", "R", "U", "L'", "U'"};
+    } else if (correctLocation == 1) {
+        if (isCornerInCorrectLocation(0)) {
+            std::cout << "Case A" << std::endl;
+            return {"L", "U'", "R'", "U", "L'", "U'", "R", "U"};
+        } else if (isCornerInCorrectLocation(1)) {
+            std::cout << "Case B" << std::endl;
+            return {"F", "U'", "B'", "U", "F'", "U'", "B", "U"};
+        } else if (isCornerInCorrectLocation(2)) {
+            std::cout << "Case C" << std::endl;
+            return {"R", "U'", "L'", "U", "R'", "U'", "L", "U"};
+        } else if (isCornerInCorrectLocation(3)) {
+            std::cout << "Case D" << std::endl;
+            return {"R'", "U", "L", "U'", "R", "U", "L'", "U'"};
+        }
+    } else if (correctLocation == 4){
+        std::cout << "Case E" << std::endl;
+        return orientCorners();
+    }
+    return {};
+}
 
-    // First check if cube is actually solved
-    if (isCubeActuallySolved()) {
-        std::cout << "CUBE SOLVED!" << std::endl;
-        currentState = WCCOMPLETE;
+std::vector<std::string> Solver::orientCorners() {
+    int solvedCorners = countCorrectCorners_Fixed();
+    std::cout << "orientCorners" << std::endl;
+    if (solvedCorners == 0) {
+        return {
+        "R'", "U", "U", "R", "U", "R'", "U", "R",
+            "L", "U", "U", "L'", "U'", "L", "U'", "L'"};
+    }else if (solvedCorners == 1) {
+        if (isCornerInCorrectLocation(1) || isCornerInCorrectLocation(2)) {
+            std::cout << "Case 1/2" << std::endl;
+            return {"L", "U", "U", "L'", "U'", "L", "U'", "L'",
+                "R'", "U", "U", "R", "U", "R'", "U", "R"
+                    };
+        } else if (isCornerInCorrectLocation(0) || isCornerInCorrectLocation(3)) {
+            std::cout << "Case 0/3" << std::endl;
+            return {
+                "L", "U", "U", "L'", "U'", "L", "U'", "L'",
+                "R'", "U", "U", "R", "U", "R'", "U", "R"
+                    };
+        }
+    }
+     else if (solvedCorners == 2) {
+        if (isCornerInCorrectLocation(0) && isCornerInCorrectLocation(1)) {
+            std::cout << "Case 0 - 1" << std::endl;
+            return {"B'", "U'", "U'", "B", "U", "B'", "U", "B",
+                       "F", "U'", "U'", "F'", "U'", "F", "U'", "F'"
+
+                // "L", "U", "U", "L'", "U'", "L", "U'", "L'",
+                // "R'", "U", "U", "R", "U", "R'", "U", "R"
+                    };
+        } else if (isCornerInCorrectLocation(1) && isCornerInCorrectLocation(2)) {
+            std::cout << "Case 1 - 2" << std::endl;
+            return {};
+                    // "U'",
+                    // "R'", "U", "U", "R", "U", "R'", "U", "R",
+                    // "L", "U", "U", "L'", "U'", "L", "U'", "L'"};
+        } else if (isCornerInCorrectLocation(2) && isCornerInCorrectLocation(3)) {
+            std::cout << "Case 2 - 3" << std::endl;
+            return { };
+                    // "R'", "U", "U", "R", "U", "R'", "U", "R",
+                    // "L", "U", "U", "L'", "U'", "L", "U'", "L'"};
+        } else if (isCornerInCorrectLocation(3) && isCornerInCorrectLocation(1)) {
+            std::cout << "Case 3 - 1" << std::endl;
+            return {};
+                   // "U'",
+                   // "R'", "U", "U", "R", "U", "R'", "U", "R",
+                   //  "L", "U", "U", "L'", "U'", "L", "U'", "L'"};
+        } else if (isCornerInCorrectLocation(1) && isCornerInCorrectLocation(3) || isCornerInCorrectLocation(0) && isCornerInCorrectLocation(2)) {
+            std::cout << "Case 1 - 3 or 0 - 2" << std::endl;
+            return {
+                    "R'", "U", "U", "R", "U", "R'", "U", "R",
+                    "L", "U", "U", "L'", "U'", "L", "U'", "L'"};
+        }
+    } else if (solvedCorners == 4) {
+        fullySolved = true;
         return {};
     }
+    return {};
+}
 
-    // Check if all corners have yellow on UP
-    int oriented = countCorrectCornerOrientations();
-    if (oriented < 4) {
-        std::cout << oriented << "/4 corners oriented, applying Sune" << std::endl;
-        return {"R'", "U'", "R", "U'", "R'", "U'", "U'", "R"};
+bool Solver::isCornerInCorrectLocation(int cornerIndex) {
+    static const glm::ivec3 positions[4] = {
+        {1, 1, 1}, {1, 1, -1}, {-1, 1, -1}, {-1, 1, 1}
+    };
+
+    static const std::vector<std::vector<char>> expectedColors = {
+        {'Y', 'G', 'R'}, {'Y', 'R', 'B'}, {'Y', 'B', 'O'}, {'Y', 'O', 'G'}
+    };
+
+    if (cornerIndex < 0 || cornerIndex >= 4) return false;
+
+    Cubelet* corner = cube->getCubelet(positions[cornerIndex]);
+    if (!corner) return false;
+
+    // Get all visible colors
+    std::vector<char> actualColors;
+    std::vector<Face> faces = {UP, DOWN, FRONT, BACK, RIGHT, LEFT};
+
+    for (Face face : faces) {
+        char color = getFaceColor(corner, face);
+        if (color != '?') {
+            actualColors.push_back(color);
+        }
     }
 
-    std::cout << "All corners have yellow on UP ✓" << std::endl;
+    // Sort and compare
+    std::vector<char> sortedActual = actualColors;
+    std::sort(sortedActual.begin(), sortedActual.end());
 
-    // Now we have oriented corners but wrong positions
-    // Check for A-perm case (adjacent corner swap)
-    std::cout << "Checking for adjacent corner swap..." << std::endl;
+    std::vector<char> sortedExpected = expectedColors[cornerIndex];
+    std::sort(sortedExpected.begin(), sortedExpected.end());
 
-    // Try up to 4 U moves to find the right alignment for A-perm
+    return (sortedActual == sortedExpected);
+}
+
+bool Solver::isCornerCorrectlyOriented(int cornerIndex) {
+    static const glm::ivec3 positions[4] = {
+        {1, 1, 1}, {1, 1, -1}, {-1, 1, -1}, {-1, 1, 1}
+    };
+
+    if (cornerIndex < 0 || cornerIndex >= 4) return false;
+
+    Cubelet* corner = cube->getCubelet(positions[cornerIndex]);
+    if (!corner) return false;
+
+    return (getFaceColor(corner, UP) == 'Y');
+}
+
+bool Solver::isCornerFullyCorrect(int cornerIndex) {
+    return isCornerInCorrectLocation(cornerIndex) &&
+           isCornerCorrectlyOriented(cornerIndex);
+}
+
+int Solver::countCorrectCornersLocations() {
+    int count = 0;
     for (int i = 0; i < 4; i++) {
-        // Check if we have the A-perm pattern
-        if (hasAdjacentCornerSwapPattern()) {
-            std::cout << "Adjacent corner swap detected, applying clockwise A-perm" << std::endl;
-            return {"R'", "U'", "R", "U", "R", "F'", "R'", "R'", "U", "R", "U", "R'", "U'", "R", "F"};
-        }
-
-        // Rotate U and check again
-        if (i < 3) {
-            std::cout << "Rotating U to find correct A-perm alignment" << std::endl;
-            return {"U"};
+        if (isCornerInCorrectLocation(i)) {
+            count++;
         }
     }
-
-    // Default: try A-perm anyway
-    std::cout << "Applying A-perm (default)" << std::endl;
-    return {"R'", "U'", "R", "U", "R", "F'", "R'", "R'", "U", "R", "U", "R'", "U'", "R", "F"};
+    return count;
 }
 
 bool Solver::isCubeActuallySolved() {
@@ -2491,5 +2611,84 @@ void Solver::debugExpectedCornerColors() {
 
     std::cout << "4. Corner at (-1,1,1) - ULF: UP=Y, FRONT=G, LEFT=O" << std::endl;
     std::cout << "   After XX: visible faces are UP=Y, BACK=G, LEFT=O" << std::endl;
+}
 
+// In Solver.cpp
+std::string Solver::getEdgeKey(const F2LPair& pair, glm::ivec3 edgePos, Cubelet* edge) const {
+    if (!edge) return "";
+
+    std::string key = "E:";
+    key += pair.color1;
+    key += pair.color2;
+    key += ":";
+    key += std::to_string(edgePos.x) + "," + std::to_string(edgePos.y) + "," + std::to_string(edgePos.z);
+    key += ":";
+
+    // Add edge orientation (which colors are on which faces)
+    std::vector<Face> faces = {UP, DOWN, FRONT, BACK, RIGHT, LEFT};
+    for (Face face : faces) {
+        char color = getFaceColor(edge, face);
+        if (color != '?') {
+            key += color;
+            key += faceToString(face).substr(0,1);
+        }
+    }
+
+    return key;
+}
+
+bool Solver::checkEdgeStuck(const std::string& key, int maxCount) {
+    if (key.empty()) return false;
+
+    int& count = edgeStuckCount[key];
+    if (++count > maxCount) {
+        std::cout << "DEBUG: Edge stuck on key " << key << ", count=" << count << std::endl;
+        return true;
+    }
+    return false;
+}
+
+void Solver::resetEdgeTracking() {
+    edgeStuckCount.clear();
+}
+std::string Solver::getCornerKey(const F2LPair& pair, glm::ivec3 cornerPos, Cubelet* corner) const {
+    if (!corner) return "";
+
+    std::string key = "C:";
+    key += pair.color1;
+    key += pair.color2;
+    key += ":";
+    key += std::to_string(cornerPos.x) + "," + std::to_string(cornerPos.y) + "," + std::to_string(cornerPos.z);
+    key += ":";
+
+    // Add corner orientation (which colors are on which faces)
+    std::vector<Face> faces = {UP, DOWN, FRONT, BACK, RIGHT, LEFT};
+    std::string orientation = "";
+    for (Face face : faces) {
+        char color = getFaceColor(corner, face);
+        if (color != '?') {
+            orientation += color;
+            orientation += faceToString(face).substr(0,1);
+        }
+    }
+    // Sort orientation for consistent key (corner can be rotated)
+    std::sort(orientation.begin(), orientation.end());
+    key += orientation;
+
+    return key;
+}
+
+bool Solver::checkCornerStuck(const std::string& key, int maxCount) {
+    if (key.empty()) return false;
+
+    int& count = cornerStuckCount[key];
+    if (++count > maxCount) {
+        std::cout << "DEBUG: Corner stuck on key " << key << ", count=" << count << std::endl;
+        return true;
+    }
+    return false;
+}
+
+void Solver::resetCornerTracking() {
+    cornerStuckCount.clear();
 }
