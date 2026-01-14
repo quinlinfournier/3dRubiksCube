@@ -2,6 +2,11 @@
 Quin Fournier
 Creates a 3d 3x3 rubiks cube using OpenGL and GLFW
 
+Controls
+Turn Edges Q,W,E,A,S,D,Z,X,C
+Randomize P
+Solve SPACE
+
 Known bugs
 - Camera movement is kinda glitchy
 - In the F2L there is a case that it thinks its solved and inserts the pair but they are not
