@@ -1,4 +1,4 @@
-# Final-Project-qjfourni
+# 3D Rubikc Cube Project
 Quin Fournier
 Creates a 3d 3x3 rubiks cube using OpenGL and GLFW
 
